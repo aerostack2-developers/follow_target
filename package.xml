@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>as2_node_template</name>
+  <name>follow_target</name>
   <version>0.0.0</version>
   <description>TODO: Package description</description>
   <maintainer email="miguel.fernandez.cortizas@upm.es">Miguel Fernandez-Cortizas</maintainer>
@@ -15,6 +15,9 @@
   <depend>std_msgs</depend>
   <depend>as2_msgs</depend>
   <depend>std_svrs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>tf2</depend>
+  <depend>motion_reference_handlers</depend>
 
   <!-- linting test dependencies -->
   <test_depend>ament_lint_auto</test_depend>

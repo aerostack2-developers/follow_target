@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-set(PROJECT_NAME as2_node_template)
+set(PROJECT_NAME follow_target)
 project(${PROJECT_NAME})
 
 # Default to C++14
@@ -21,6 +21,9 @@ set(PROJECT_DEPENDENCIES
   std_msgs
   as2_msgs
   std_srvs
+  geometry_msgs
+  tf2
+  motion_reference_handlers
 )
 
 foreach(DEPENDENCY ${PROJECT_DEPENDENCIES})
@@ -30,21 +33,27 @@ endforeach()
 include_directories(
   include
   include/${PROJECT_NAME}
+  ${EIGEN3_INCLUDE_DIRS}
 )
 
 set(SOURCE_CPP_FILES 
-  src/as2_node_template.cpp
+  src/follow_target.cpp
+  lib/ft_speed_controller.cpp
 )
 
 # set(INCLUDE_HPP_FILES 
-#   include/${PROJECT_NAME}/as2_node_template_libs.hpp
+#   include/${PROJECT_NAME}/follow_target.hpp
 # )
 
-add_executable(${PROJECT_NAME}_node src/as2_node_template_node.cpp ${SOURCE_CPP_FILES})
+add_executable(${PROJECT_NAME}_node src/follow_target_node.cpp ${SOURCE_CPP_FILES})
 ament_target_dependencies(${PROJECT_NAME}_node ${PROJECT_DEPENDENCIES})
 
 install(DIRECTORY
   launch
+  DESTINATION share/${PROJECT_NAME})
+
+install(DIRECTORY
+  config
   DESTINATION share/${PROJECT_NAME})
 
 install(TARGETS

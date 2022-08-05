@@ -1,0 +1,8 @@
+/**:
+  ros__parameters:
+    base_frame: ""
+    proportional_limitation : true
+    speed_limit: 
+        vx: 1.0
+        vy: 1.0
+        vz: 1.0
