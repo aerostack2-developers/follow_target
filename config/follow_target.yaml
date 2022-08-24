@@ -5,10 +5,10 @@
     gripper_actuator_topic: "gripper/suction_on"
     gripper_state_topic: "gripper/contacts/bottom"
     proportional_limitation : true
-    unpick_threshold: 0.5
-    predict_factor: 1.8
-    gripper_height: 0.4
     speed_limit: 
         vx: 1.0
         vy: 1.0
         vz: 1.0
+    pickup_approach_threshold: 0.5
+    predict_factor: 1.0
+    gripper_height: 0.04

@@ -38,39 +38,39 @@
 #ifndef __FT_SC_CONTROLLER_H__
 #define __FT_SC_CONTROLLER_H__
 
-#include <iostream>
 #include <Eigen/Dense>
 #include <Eigen/src/Core/Matrix.h>
-#include <unordered_map>
+#include <iostream>
 #include <math.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <unordered_map>
 
 namespace ft_speed_controller
 {
-  using Vector3d = Eigen::Vector3d;
+using Vector3d = Eigen::Vector3d;
 
-  struct UAV_state
-  {
+struct UAV_state
+{
     Vector3d pos;
     Vector3d vel;
     tf2::Quaternion rot;
-  };
+};
 
-  struct Control_ref
-  {
+struct Control_ref
+{
     Vector3d pos;
     Vector3d vel;
     Vector3d yaw;
-  };
+};
 
-  struct Control_command
-  {
+struct Control_command
+{
     Vector3d vel;
     Vector3d yaw;
-  };
+};
 
-  class SpeedController
-  {
+class SpeedController
+{
   public:
     SpeedController();
     ~SpeedController(){};
@@ -82,31 +82,15 @@ namespace ft_speed_controller
     bool setParametersList(const std::vector<std::pair<std::string, double>> &parameter_list);
     std::vector<std::pair<std::string, double>> getParametersList();
 
-    double PIDController(
-    const double &reference,
-    const double &state,
-    const double &dt,
-    const double &kp,
-    const double &kd,
-    const double &ki,
-    const double &alpha,
-    const double &antiwindup_cte,
-    double &p_acum_error);
+    double PIDController(const double &reference, const double &state, const double &dt, const double &kp,
+                         const double &kd, const double &ki, const double &alpha, const double &antiwindup_cte,
+                         double &p_acum_error);
 
-    Vector3d computePositionControl(
-        const UAV_state &state,
-        const Control_ref &ref,
-        const double &dt);
+    Vector3d computePositionControl(const UAV_state &state, const Control_ref &ref, const double &dt);
 
-    double computeYawSpeed(
-        const double &yaw_angle_state,
-        const double &yaw_angle_ref,
-        const double &dt);
+    double computeYawSpeed(const double &yaw_angle_state, const double &yaw_angle_ref, const double &dt);
 
-    Vector3d limitSpeed(
-        const Vector3d &speed,
-        const Vector3d &speed_limits_,
-        const bool &proportional_limit);
+    Vector3d limitSpeed(const Vector3d &speed, const Vector3d &speed_limits_, const bool &proportional_limit);
 
     void resetError();
 
@@ -114,22 +98,20 @@ namespace ft_speed_controller
     Eigen::Vector3d position_accum_error_ = Eigen::Vector3d::Zero();
     double yaw_accum_error_ = 0.0;
 
-    std::unordered_map<std::string, double> parameters_ = {
-        {"antiwindup_cte", 5.0},
-        {"alpha", 0.1},
-        {"position_following.position_Kp.x", 1.0},
-        {"position_following.position_Kp.y", 1.0},
-        {"position_following.position_Kp.z", 1.0},
-        {"position_following.position_Ki.x", 0.0},
-        {"position_following.position_Ki.y", 0.0},
-        {"position_following.position_Ki.z", 0.0},
-        {"position_following.position_Kd.x", 0.0},
-        {"position_following.position_Kd.y", 0.0},
-        {"position_following.position_Kd.z", 0.0},
-        {"yaw_speed_controller.Kp", 1.0},
-        {"yaw_speed_controller.Ki", 1.0},
-        {"yaw_speed_controller.Kd", 1.0}
-    };
+    std::unordered_map<std::string, double> parameters_ = {{"antiwindup_cte", 5.0},
+                                                           {"alpha", 0.1},
+                                                           {"position_following.position_Kp.x", 1.0},
+                                                           {"position_following.position_Kp.y", 1.0},
+                                                           {"position_following.position_Kp.z", 1.0},
+                                                           {"position_following.position_Ki.x", 0.0},
+                                                           {"position_following.position_Ki.y", 0.0},
+                                                           {"position_following.position_Ki.z", 0.0},
+                                                           {"position_following.position_Kd.x", 0.0},
+                                                           {"position_following.position_Kd.y", 0.0},
+                                                           {"position_following.position_Kd.z", 0.0},
+                                                           {"yaw_speed_controller.Kp", 1.0},
+                                                           {"yaw_speed_controller.Ki", 1.0},
+                                                           {"yaw_speed_controller.Kd", 1.0}};
 
     float antiwindup_cte_ = 1.0f;
     double alpha_ = 0.1;
@@ -140,10 +122,11 @@ namespace ft_speed_controller
 
     Eigen::Vector3d yaw_ang_mat_ = Eigen::Vector3d::Identity();
 
+    bool proportional_limitation = false;
+
   private:
     void updateGains_();
-
-  };
 };
+}; // namespace ft_speed_controller
 
 #endif

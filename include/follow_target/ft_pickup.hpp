@@ -1,55 +1,68 @@
 #ifndef FT_PICKUP_HPP_
 #define FT_PICKUP_HPP_
 
-#include <rclcpp/rclcpp.hpp>
-#include <as2_core/node.hpp>
 #include "as2_core/names/topics.hpp"
+#include <as2_core/node.hpp>
+#include <rclcpp/rclcpp.hpp>
 
-#include "ft_speed_controller.hpp"
 #include "ft_base.hpp"
+#include "ft_speed_controller.hpp"
+#include "ft_utils.hpp"
 
-#include <std_msgs/msg/bool.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/twist_stamped.hpp>
+#include <std_msgs/msg/bool.hpp>
 
 namespace ft_pickup
 {
-    using SpeedController = ft_speed_controller::SpeedController;
+using SpeedController = ft_speed_controller::SpeedController;
 
-    class PickUp : ft_base::FollowTargetBase
-    {
-    public:
-        PickUp(ft_base::FTBaseStruct tf_base_struct);
-        ~PickUp(){};
+class PickUp : public ft_base::FollowTargetBase
+{
+  public:
+    PickUp(ft_base::FTBaseStruct tf_base_struct);
+    ~PickUp(){};
 
-    public:
-        /* Subscribers */
-        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr gripper_sensor_sub_;
-        void gripperSensorCallback(const std::shared_ptr<std_msgs::msg::Bool> _msg);
+  public:
+    /* Subscribers */
+    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr gripper_sensor_sub_;
+    void gripperSensorCallback(const std::shared_ptr<std_msgs::msg::Bool> _msg);
 
-        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr gripper_actuator_sub_;
-        void gripperActuatorCallback(const std::shared_ptr<std_msgs::msg::Bool> _msg);
+    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr gripper_actuator_sub_;
+    void gripperActuatorCallback(const std::shared_ptr<std_msgs::msg::Bool> _msg);
 
-        /* Publishers */
-        rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr gripper_actuator_pub_;
-        void publishGripper(const bool &_state);
+    /* Publishers */
+    rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr gripper_actuator_pub_;
+    void publishGripper(const bool &_state);
 
-    private:
-        bool gripper_contact_;
-        bool gripper_actuator_;
-        bool object_gripped_;
+  private:
+    std::vector<std::string> pickup_parameters = {"pickup_approach_2D_threshold", "pickup_approach_height_threshold",
+                                                  "pickup_approach_speed_threshold", "predict_factor",
+                                                  "gripper_height"};
 
-        int8_t current_phase_;
+  private:
+    bool gripper_contact_;
+    bool gripper_actuator_;
+    bool object_gripped_;
 
-    public:
-        void test(){
-            RCLCPP_INFO(node_ptr_->get_logger(), "Test");
-            return;};
-        void run(double dt);
+    int8_t current_phase_;
 
-    private:
-        void checkGripperContact();
-    };
+    float pickup_approach_2D_threshold_ = 0.5f;
+    float pickup_approach_height_threshold_ = 0.5f;
+    float pickup_approach_speed_threshold_ = 0.5f;
+    float predict_factor_ = 1.0f;
+    float gripper_height_ = 0.0f;
+
+    Eigen::Vector3d pickup_position_;
+
+  protected:
+    void ownRun(const double &dt) override;
+    void ownDeclareParameters() override;
+    void ownUpdateParam(const rclcpp::Parameter param) override;
+
+  private:
+    void checkGripperContact();
+};
 
 }; // namespace ft_pickup
 
