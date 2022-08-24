@@ -1,7 +1,13 @@
 /**:
   ros__parameters:
     base_frame: ""
+    target_topic: "target_pose"
+    gripper_actuator_topic: "gripper/suction_on"
+    gripper_state_topic: "gripper/contacts/bottom"
     proportional_limitation : true
+    unpick_threshold: 0.5
+    predict_factor: 1.8
+    gripper_height: 0.4
     speed_limit: 
         vx: 1.0
         vy: 1.0

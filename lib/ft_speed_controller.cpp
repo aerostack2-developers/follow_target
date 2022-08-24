@@ -36,7 +36,7 @@
 
 #include "ft_speed_controller.hpp"
 
-namespace follow_target_speed_controller
+namespace ft_speed_controller
 {
   SpeedController::SpeedController()
   {
@@ -125,6 +125,49 @@ namespace follow_target_speed_controller
                       parameters_["yaw_speed_controller.Kd"]);
 
     return;
+  };
+
+  double SpeedController::PIDController(
+    const double &reference,
+    const double &state,
+    const double &dt,
+    const double &kp,
+    const double &kd,
+    const double &ki,
+    const double &alpha,
+    const double &antiwindup_cte,
+    double &p_acum_error)
+  {
+    // Compute the proportional contribution
+    double p_error = reference - state;
+    double p_error_contribution = kp * p_error;
+
+    // Store the error for the next iteration
+    static double last_p_error_ = p_error;
+    static double filtered_d_error_ = p_error;
+
+    // Compute the derivative contribution of the error filtered with a first order filter
+    double p_error_incr = (p_error - last_p_error_);
+    filtered_d_error_ = alpha * p_error_incr + (1.0 - alpha) * filtered_d_error_;
+
+    // Compute the derivate contribution
+    double d_error_contribution = kd * filtered_d_error_ / dt;
+
+    // Update de acumulated error
+    p_acum_error += p_error * dt;
+    // std::cout << "p_error:      " << p_error << std::endl;
+    // std::cout << "dt:           " << dt << std::endl;
+    // std::cout << "p_acum_error: " << p_acum_error << std::endl;
+
+    // Compute anti-windup. Limit integral contribution
+    double antiwindup_value = antiwindup_cte / ki;
+    p_acum_error = (p_acum_error > antiwindup_value) ? antiwindup_value : p_acum_error;
+
+    // Compute de integral contribution
+    double i_error_contribution = ki * p_acum_error;
+
+    // Compute result contribution
+    return p_error_contribution + d_error_contribution + i_error_contribution;
   };
 
   // Return velocity control command

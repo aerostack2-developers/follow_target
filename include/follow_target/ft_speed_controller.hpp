@@ -45,7 +45,7 @@
 #include <math.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
-namespace follow_target_speed_controller
+namespace ft_speed_controller
 {
   using Vector3d = Eigen::Vector3d;
 
@@ -81,6 +81,17 @@ namespace follow_target_speed_controller
     bool isParameter(const std::string &param);
     bool setParametersList(const std::vector<std::pair<std::string, double>> &parameter_list);
     std::vector<std::pair<std::string, double>> getParametersList();
+
+    double PIDController(
+    const double &reference,
+    const double &state,
+    const double &dt,
+    const double &kp,
+    const double &kd,
+    const double &ki,
+    const double &alpha,
+    const double &antiwindup_cte,
+    double &p_acum_error);
 
     Vector3d computePositionControl(
         const UAV_state &state,

@@ -38,7 +38,11 @@ include_directories(
 
 set(SOURCE_CPP_FILES 
   src/follow_target.cpp
+  lib/ft_base.cpp
   lib/ft_speed_controller.cpp
+  lib/ft_utils.cpp
+  lib/ft_pickup.cpp
+  # lib/ft_dynamic_land.cpp
 )
 
 # set(INCLUDE_HPP_FILES 

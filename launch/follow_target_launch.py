@@ -21,6 +21,7 @@ def generate_launch_description():
             name='follow_target',
             namespace=LaunchConfiguration('drone_id'),
             parameters=[
+                {"use_sim_time": True},
                 config,
                 default_controller
                 ],
