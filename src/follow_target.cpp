@@ -22,6 +22,7 @@ FollowTarget::FollowTarget() : as2::Node("follow_target")
     base_struct.target_pose = target_pose_;
     base_struct.speed_limit = speed_limit_;
     pickup_handler_ = std::make_shared<ft_pickup::PickUp>(base_struct);
+    unpick_handler_ = std::make_shared<ft_unpick::UnPick>(base_struct);
 
     static auto parameters_callback_handle_ =
         this->add_on_set_parameters_callback(std::bind(&FollowTarget::parametersCallback, this, std::placeholders::_1));
@@ -112,6 +113,7 @@ void FollowTarget::declare_parameters()
 {
     // Static parameters
     this->declare_parameter("base_frame", "");
+    // ft_utils::declareParameters(this, "base_frame", "");
     std::string base_frame = this->get_parameter("base_frame").as_string();
     std::string ns = this->get_namespace();
     if (base_frame == "")
@@ -125,6 +127,7 @@ void FollowTarget::declare_parameters()
     }
 
     this->declare_parameter("target_topic", "/target_pose");
+    // ft_utils::declareParameters(this, "target_topic", "/target_pose");
     target_topic_ = this->get_parameter("target_topic").as_string();
 
     // Dynamic parameters
@@ -143,6 +146,7 @@ void FollowTarget::declare_parameters()
 
     // PickUp parameters
     pickup_handler_->declareParameters();
+    unpick_handler_->declareParameters();
 }
 
 rcl_interfaces::msg::SetParametersResult FollowTarget::parametersCallback(
@@ -156,7 +160,7 @@ rcl_interfaces::msg::SetParametersResult FollowTarget::parametersCallback(
     {
         if (find(dynamic_parameters.begin(), dynamic_parameters.end(), param.get_name()) != dynamic_parameters.end())
         {
-            RCLCPP_INFO(this->get_logger(), "FollowTarget-UpdateParam: %s", param.get_name().c_str());
+            // RCLCPP_INFO(this->get_logger(), "FollowTarget-UpdateParam: %s", param.get_name().c_str());
             if (param.get_name() == "speed_limit.vx")
                 speed_limit_->x() = param.get_value<double>();
             else if (param.get_name() == "speed_limit.vy")
@@ -166,12 +170,13 @@ rcl_interfaces::msg::SetParametersResult FollowTarget::parametersCallback(
         }
         else if (controller_handler_->isParameter(param.get_name()))
         {
-            RCLCPP_INFO(this->get_logger(), "SpeedController-UpdateParam: %s", param.get_name().c_str());
+            // RCLCPP_INFO(this->get_logger(), "SpeedController-UpdateParam: %s", param.get_name().c_str());
             controller_handler_->setParameter(param.get_name(), param.get_value<double>());
         }
         else
         {
             pickup_handler_->updateParam(param);
+            unpick_handler_->updateParam(param);
         }
     }
     return result;
@@ -209,8 +214,16 @@ void FollowTarget::setDynamicLandSrvCall(const std::shared_ptr<as2_msgs::srv::Dy
     {
         current_state_.follow_mode = as2_msgs::msg::FollowTargetInfo::DYNAMIC_LAND;
         current_state_.follow_status = as2_msgs::msg::FollowTargetInfo::RUNNING;
-        *speed_limit_.get() =
-            Vector3d(_request->speed_limit.linear.x, _request->speed_limit.linear.y, _request->speed_limit.linear.z);
+
+        Eigen::Vector3d speed_limit = *speed_limit_.get();
+        if (_request->speed_limit.linear.x != 0)
+            speed_limit.x() = _request->speed_limit.linear.x;
+        if (_request->speed_limit.linear.y != 0)
+            speed_limit.y() = _request->speed_limit.linear.y;
+        if (_request->speed_limit.linear.z != 0)
+            speed_limit.z() = _request->speed_limit.linear.z;
+        *speed_limit_.get() = speed_limit;
+
         _response->success = true;
         return;
     }
@@ -238,8 +251,18 @@ void FollowTarget::setPackagePickUpSrvCall(const std::shared_ptr<as2_msgs::srv::
     {
         current_state_.follow_mode = as2_msgs::msg::FollowTargetInfo::PICKUP;
         current_state_.follow_status = as2_msgs::msg::FollowTargetInfo::RUNNING;
-        *speed_limit_.get() =
-            Vector3d(_request->speed_limit.linear.x, _request->speed_limit.linear.y, _request->speed_limit.linear.z);
+
+        Eigen::Vector3d speed_limit = *speed_limit_.get();
+        if (_request->speed_limit.linear.x != 0)
+            speed_limit.x() = _request->speed_limit.linear.x;
+        if (_request->speed_limit.linear.y != 0)
+            speed_limit.y() = _request->speed_limit.linear.y;
+        if (_request->speed_limit.linear.z != 0)
+            speed_limit.z() = _request->speed_limit.linear.z;
+        *speed_limit_.get() = speed_limit;
+
+        pickup_handler_->resetState();
+
         _response->success = true;
         return;
     }
@@ -267,8 +290,18 @@ void FollowTarget::setPackageUnPickSrvCall(const std::shared_ptr<as2_msgs::srv::
     {
         current_state_.follow_mode = as2_msgs::msg::FollowTargetInfo::UNPICK;
         current_state_.follow_status = as2_msgs::msg::FollowTargetInfo::RUNNING;
-        *speed_limit_.get() =
-            Vector3d(_request->speed_limit.linear.x, _request->speed_limit.linear.y, _request->speed_limit.linear.z);
+
+        Eigen::Vector3d speed_limit = *speed_limit_.get();
+        if (_request->speed_limit.linear.x != 0)
+            speed_limit.x() = _request->speed_limit.linear.x;
+        if (_request->speed_limit.linear.y != 0)
+            speed_limit.y() = _request->speed_limit.linear.y;
+        if (_request->speed_limit.linear.z != 0)
+            speed_limit.z() = _request->speed_limit.linear.z;
+        *speed_limit_.get() = speed_limit;
+
+        unpick_handler_->resetState();
+
         _response->success = true;
         return;
     }
@@ -297,6 +330,8 @@ void FollowTarget::resetState()
     current_state_.follow_mode = as2_msgs::msg::FollowTargetInfo::UNSET;
     resetCommand();
     *speed_limit_.get() = Vector3d::Zero();
+    pickup_handler_->resetState();
+    unpick_handler_->resetState();
 }
 
 void FollowTarget::run()
@@ -341,7 +376,9 @@ void FollowTarget::run()
             resetState();
         break;
     case as2_msgs::msg::FollowTargetInfo::UNPICK:
-        RCLCPP_INFO(this->get_logger(), "UnPick");
+        unpick_handler_->run(dt);
+        if (unpick_handler_->finished)
+            resetState();
         return;
         break;
     case as2_msgs::msg::FollowTargetInfo::DYNAMIC_LAND:

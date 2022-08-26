@@ -19,7 +19,8 @@ void FollowTargetBase::declareParameters()
 {
     for (int i = 0; i < base_parameters.size(); i++)
     {
-        node_ptr_->declare_parameter(base_parameters[i]); // TODO: WARNING on galactic and advance
+        // node_ptr_->declare_parameter(base_parameters[i]); // TODO: WARNING on galactic and advance
+        ft_utils::declareParameters(node_ptr_, base_parameters[i]);
     }
     ownDeclareParameters();
     return;
@@ -27,13 +28,15 @@ void FollowTargetBase::declareParameters()
 
 void FollowTargetBase::updateParam(const rclcpp::Parameter param)
 {
-    RCLCPP_INFO(node_ptr_->get_logger(), "Base-UpdateParam: %s", param.get_name().c_str());
-    if (param.get_name() == "target_twist_alpha")
-        target_twist_alpha = param.get_value<float>();
-    else if (param.get_name() == "target_pose_predict_factor")
+    // RCLCPP_INFO(node_ptr_->get_logger(), "Base-UpdateParam: %s", param.get_name().c_str());
+    if (param.get_name() == "base.proportional_limitation")
+        proportional_limitation_ = param.get_value<bool>();
+    else if (param.get_name() == "base.target_twist_alpha")
+        target_twist_alpha_ = param.get_value<float>();
+    else if (param.get_name() == "base.target_pose_predict_factor")
         target_pose_predict_factor_ = param.get_value<float>();
-    else if (param.get_name() == "target_height_alpha")
-        target_height_alpha = param.get_value<float>();
+    else if (param.get_name() == "base.target_height_alpha")
+        target_height_alpha_ = param.get_value<float>();
 
     ownUpdateParam(param);
     return;
@@ -52,9 +55,9 @@ void FollowTargetBase::computeTargetSpeed(const double &dt)
     static auto last_vy = delta_pose.position.y / dt;
     static auto last_vz = delta_pose.position.z / dt;
 
-    target_twist_.linear.x = target_twist_alpha * (delta_pose.position.x / dt) + (1 - target_twist_alpha) * last_vx;
-    target_twist_.linear.y = target_twist_alpha * (delta_pose.position.y / dt) + (1 - target_twist_alpha) * last_vy;
-    target_twist_.linear.z = target_twist_alpha * (delta_pose.position.z / dt) + (1 - target_twist_alpha) * last_vz;
+    target_twist_.linear.x = target_twist_alpha_ * (delta_pose.position.x / dt) + (1 - target_twist_alpha_) * last_vx;
+    target_twist_.linear.y = target_twist_alpha_ * (delta_pose.position.y / dt) + (1 - target_twist_alpha_) * last_vy;
+    target_twist_.linear.z = target_twist_alpha_ * (delta_pose.position.z / dt) + (1 - target_twist_alpha_) * last_vz;
 
     last_vx = target_twist_.linear.x;
     last_vy = target_twist_.linear.y;
@@ -73,12 +76,19 @@ void FollowTargetBase::computeReference(const double &dt)
 
 void FollowTargetBase::computeTargetMeanHeight(const double &dt)
 {
+    static double last_target_height = target_pose_->pose.position.z;
     target_mean_height =
-        target_height_alpha * target_pose_->pose.position.z + (1 - target_height_alpha) * last_target_pose_.position.z;
+        target_height_alpha_ * target_pose_->pose.position.z + (1 - target_height_alpha_) * last_target_height;
+    // RCLCPP_INFO(node_ptr_->get_logger(), "target_height_alpha_: %f", target_height_alpha_);
+    // RCLCPP_INFO(node_ptr_->get_logger(), "Current height: %f", target_pose_->pose.position.z);
+    // RCLCPP_INFO(node_ptr_->get_logger(), "Last height: %f", last_target_pose_.position.z);
+
     return;
 };
 
-Eigen::Vector3d FollowTargetBase::computeControl(const double &dt)
+Eigen::Vector3d FollowTargetBase::computeControl(const double &dt,
+                                                 const Eigen::Vector3d &speed_limit = Eigen::Vector3d::Zero(),
+                                                 const bool &proportional_limitation = false)
 {
     ft_speed_controller::UAV_state state;
     state.pos = Eigen::Vector3d(sl_pose_->pose.position.x, sl_pose_->pose.position.y, sl_pose_->pose.position.z);
@@ -87,10 +97,69 @@ Eigen::Vector3d FollowTargetBase::computeControl(const double &dt)
     ref.pos = Eigen::Vector3d(reference_pose_.position.x, reference_pose_.position.y, reference_pose_.position.z);
 
     Eigen::Vector3d control_cmd = controller_handler_->computePositionControl(state, ref, dt);
-    Eigen::Vector3d motion_speed =
-        controller_handler_->limitSpeed(control_cmd, *speed_limit_.get(), proportional_limitation_);
+    Eigen::Vector3d motion_speed = controller_handler_->limitSpeed(control_cmd, speed_limit, proportional_limitation);
 
-    return control_cmd;
+    // RCLCPP_INFO(node_ptr_->get_logger(), "Base-Control-dt   : %f", dt);
+    // RCLCPP_INFO(node_ptr_->get_logger(), "Base-Control-State: %f %f %f", state.pos(0), state.pos(1), state.pos(2));
+    // RCLCPP_INFO(node_ptr_->get_logger(), "Base-Control-Ref  : %f %f %f", ref.pos(0), ref.pos(1), ref.pos(2));
+    // RCLCPP_INFO(node_ptr_->get_logger(), "Base-Control-Cmd  : %f %f %f", control_cmd(0), control_cmd(1),
+    //             control_cmd(2));
+    // RCLCPP_INFO(node_ptr_->get_logger(), "Base-Control-Speed: %f %f %f", motion_speed(0), motion_speed(1),
+    //             motion_speed(2));
+    Eigen::Vector3d error = (ref.pos - state.pos);
+    RCLCPP_INFO(node_ptr_->get_logger(), "Base-Control-Error: %f %f %f", error(0), error(1), error(2));
+    // RCLCPP_INFO(node_ptr_->get_logger(), "Base-Control-Error: %f\n", error.norm());
+
+    return motion_speed;
+};
+
+double FollowTargetBase::getPathFacingAngle(const double &dt)
+{
+    double x_dif = target_pose_->pose.position.x - sl_pose_->pose.position.x;
+    double y_dif = target_pose_->pose.position.y - sl_pose_->pose.position.y;
+    return as2::FrameUtils::getVector2DAngle(x_dif, y_dif);
+};
+
+double FollowTargetBase::computeYawControl(const double &dt, const double &desired_yaw)
+{
+    double current_yaw = as2::FrameUtils::getYawFromQuaternion(sl_pose_->pose.orientation);
+    return controller_handler_->computeYawSpeed(current_yaw, desired_yaw, dt);
+};
+
+double FollowTargetBase::computeYawDiff(const double &desired_yaw, const double &current_yaw)
+{
+    double yaw_diff = desired_yaw - current_yaw;
+    if (yaw_diff > M_PI)
+    {
+        yaw_diff -= 2 * M_PI;
+    }
+    else if (yaw_diff < -M_PI)
+    {
+        yaw_diff += 2 * M_PI;
+    }
+    return yaw_diff;
+}
+
+Eigen::Vector2d FollowTargetBase::computeSpeedDif2d(const geometry_msgs::msg::Twist &v0,
+                                                    const geometry_msgs::msg::Twist &v1)
+{
+    return Eigen::Vector2d((v1.linear.x - v0.linear.x), (v1.linear.y - v0.linear.y));
+};
+
+Eigen::Vector3d FollowTargetBase::computeSpeedDif3d(const geometry_msgs::msg::Twist &v0,
+                                                    const geometry_msgs::msg::Twist &v1)
+{
+    return Eigen::Vector3d((v1.linear.x - v0.linear.x), (v1.linear.y - v0.linear.y), (v1.linear.z - v0.linear.z));
+};
+
+Eigen::Vector2d FollowTargetBase::computeRelativeSpeedTargetUav2d()
+{
+    return computeSpeedDif2d(target_twist_, sl_twist_->twist);
+};
+
+Eigen::Vector3d FollowTargetBase::computeRelativeSpeedTargetUav3d()
+{
+    return computeSpeedDif3d(target_twist_, sl_twist_->twist);
 };
 
 void FollowTargetBase::run(const double &dt)

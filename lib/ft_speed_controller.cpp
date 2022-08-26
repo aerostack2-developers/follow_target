@@ -176,6 +176,20 @@ Vector3d SpeedController::computePositionControl(const UAV_state &state, const C
     // Compute the derivate contribution (velocity error)
     Vector3d d_position_error_contribution = position_Kd_lin_mat_ * filtered_d_position_error_ / dt;
 
+    // Get ref.pos.z() signed. If it is negative, sign is false, otherwise true
+    bool pos_sign = position_error.z() < 0;
+    bool last_pos_sign = last_position_error_.z() < 0;
+
+    // Reset integral contribution if sign has changed
+    if (pos_sign != last_pos_sign &&
+        (position_accum_error_.z() >= antiwindup_cte_ || position_accum_error_.z() <= -antiwindup_cte_))
+    {
+        position_accum_error_.setZero();
+    }
+    {
+        position_accum_error_.z() = 0;
+    }
+
     // Update de acumulated error
     position_accum_error_ += position_error * dt;
 
@@ -191,6 +205,13 @@ Vector3d SpeedController::computePositionControl(const UAV_state &state, const C
 
     // Compute de integral contribution (position integrate)
     Vector3d i_position_error_contribution = position_Ki_lin_mat_ * position_accum_error_;
+
+    // std::cout << "p_position_error_contribution: " << p_position_error_contribution.x() << " "
+    //           << p_position_error_contribution.y() << " " << p_position_error_contribution.z() << std::endl;
+    // std::cout << "d_position_error_contribution: " << d_position_error_contribution.x() << " "
+    //           << d_position_error_contribution.y() << " " << d_position_error_contribution.z() << std::endl;
+    // std::cout << "i_position_error_contribution: " << i_position_error_contribution.x() << " "
+    //           << i_position_error_contribution.y() << " " << i_position_error_contribution.z() << std::endl;
 
     // Compute desired speed
     Vector3d desired_speed =

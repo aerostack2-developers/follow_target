@@ -15,6 +15,7 @@
 
 #include "ft_pickup.hpp"
 #include "ft_speed_controller.hpp"
+#include "ft_unpick.hpp"
 #include "ft_utils.hpp"
 
 #include <geometry_msgs/msg/pose_stamped.hpp>
@@ -104,6 +105,7 @@ class FollowTarget : public as2::Node
     Manage_flags manage_flags_;
 
     std::shared_ptr<ft_pickup::PickUp> pickup_handler_;
+    std::shared_ptr<ft_unpick::UnPick> unpick_handler_;
 
     std::unique_ptr<tf2_ros::Buffer> tfBuffer_;
     std::shared_ptr<tf2_ros::TransformListener> tfListener_{nullptr};

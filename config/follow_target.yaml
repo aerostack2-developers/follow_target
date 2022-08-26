@@ -2,13 +2,30 @@
   ros__parameters:
     base_frame: ""
     target_topic: "target_pose"
-    gripper_actuator_topic: "gripper/suction_on"
-    gripper_state_topic: "gripper/contacts/bottom"
-    proportional_limitation : true
     speed_limit: 
         vx: 1.0
         vy: 1.0
         vz: 1.0
-    pickup_approach_threshold: 0.5
-    predict_factor: 1.0
-    gripper_height: 0.04
+    base:
+      proportional_limitation : true
+      target_twist_alpha: 0.01
+      target_pose_predict_factor: 0.0
+      target_height_alpha: 0.01
+    pickup:
+      gripper_state_topic: "gripper/contacts/bottom"
+      gripper_actuator_topic: "gripper/suction_on"
+      pickup_approach_2D_threshold: 0.2
+      pickup_approach_height_threshold: 0.1
+      pickup_approach_speed_threshold: 0.4
+      gripper_height: 0.04
+      vessel_height: 8.0
+    unpick:
+      gripper_state_topic: "gripper/contacts/bottom"
+      gripper_actuator_topic: "gripper/suction_on"
+      pickup_approach_2D_threshold: 0.1
+      pickup_approach_height_threshold: 0.1
+      pickup_approach_speed_threshold: 0.2
+      gripper_height: 0.04
+      vessel_height: 8.0
+      object_height: 0.2
+      delivery_height: 0.2
