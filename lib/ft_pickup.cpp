@@ -149,7 +149,7 @@ void PickUp::ownRun(const double &dt)
 
         double relative_speed = computeRelativeSpeedTargetUav2d().norm();
 
-        if (distance2d >= 10.0f)
+        if (distance2d >= 20.0f)
         {
             yaw_speed = computeYawControl(dt, getPathFacingAngle());
         }
