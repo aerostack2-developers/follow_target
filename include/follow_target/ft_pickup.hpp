@@ -35,7 +35,7 @@ class PickUp : public ft_base::FollowTargetBase
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr gripper_actuator_pub_;
     void publishGripper(const bool &_state);
 
-    void resetState() override;
+    void ownResetState() override;
 
   private:
     bool gripper_contact_ = false;

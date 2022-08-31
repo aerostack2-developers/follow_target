@@ -112,7 +112,7 @@ void UnPick::checkGripperContact()
     return;
 };
 
-void UnPick::resetState()
+void UnPick::ownResetState()
 {
     current_phase_ = 0;
     return;
@@ -143,7 +143,7 @@ void UnPick::ownRun(const double &dt)
 
         if (distance2d >= 2.5)
         {
-            yaw_speed = computeYawControl(dt, getPathFacingAngle(dt));
+            yaw_speed = computeYawControl(dt, getPathFacingAngle());
         }
 
         if (distance2d < unpick_approach_2D_threshold_ * 20.0 && distance1d < unpick_approach_height_threshold_ * 20.0)
@@ -266,10 +266,17 @@ void UnPick::ownRun(const double &dt)
     }
 
     Eigen::Vector3d motion_speed_ = computeControl(dt, speed_limit, proportional_speed_limit);
-    // RCLCPP_INFO(node_ptr_->get_logger(), "motion_speed_: %f, %f, %f", motion_speed_.x(), motion_speed_.y(),
-    //             motion_speed_.z());
     motion_handler_speed_->sendSpeedCommandWithYawSpeed(motion_speed_.x(), motion_speed_.y(), motion_speed_.z(),
                                                         yaw_speed);
+
+    // RCLCPP_INFO(node_ptr_->get_logger(), "reference_pose_: %f, %f, %f", reference_pose_.position.x,
+    //             reference_pose_.position.y, reference_pose_.position.z);
+    // RCLCPP_INFO(node_ptr_->get_logger(), "state: %f, %f, %f", sl_pose_->pose.position.x, sl_pose_->pose.position.y,
+    //             sl_pose_->pose.position.z);
+    // RCLCPP_INFO(node_ptr_->get_logger(), "motion_speed_: %f, %f, %f", motion_speed_.x(), motion_speed_.y(),
+    //             motion_speed_.z());
+    // RCLCPP_INFO(node_ptr_->get_logger(), "speed_limit: %f, %f, %f", speed_limit.x(), speed_limit.y(), speed_limit.z());
+    // RCLCPP_INFO(node_ptr_->get_logger(), "proportional_speed_limit: %d \n", proportional_speed_limit);
     return;
 };
 } // namespace ft_unpick

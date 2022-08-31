@@ -177,17 +177,26 @@ Vector3d SpeedController::computePositionControl(const UAV_state &state, const C
     Vector3d d_position_error_contribution = position_Kd_lin_mat_ * filtered_d_position_error_ / dt;
 
     // Get ref.pos.z() signed. If it is negative, sign is false, otherwise true
-    bool pos_sign = position_error.z() < 0;
-    bool last_pos_sign = last_position_error_.z() < 0;
+    // bool pos_sign = position_error[2] < 0;
+    // bool last_pos_sign = last_position_error_[2] < 0;
 
-    // Reset integral contribution if sign has changed
-    if (pos_sign != last_pos_sign &&
-        (position_accum_error_.z() >= antiwindup_cte_ || position_accum_error_.z() <= -antiwindup_cte_))
+    // // Reset integral contribution if sign has changed
+    // if (pos_sign != last_pos_sign &&
+    //     (position_accum_error_[2] >= antiwindup_cte_ || position_accum_error_[2] <= -antiwindup_cte_))
+    // {
+    //     position_accum_error_[2] = 0.0;
+    // }
+    for (short j = 0; j < 3; j++)
     {
-        position_accum_error_.setZero();
-    }
-    {
-        position_accum_error_.z() = 0;
+        bool pos_sign = position_error[j] < 0;
+        bool last_pos_sign = last_position_error_[j] < 0;
+
+        // Reset integral contribution if sign has changed
+        if (pos_sign != last_pos_sign &&
+            (position_accum_error_[j] >= antiwindup_cte_ || position_accum_error_[j] <= -antiwindup_cte_))
+        {
+            position_accum_error_[j] = 0.0;
+        }
     }
 
     // Update de acumulated error
@@ -205,6 +214,15 @@ Vector3d SpeedController::computePositionControl(const UAV_state &state, const C
 
     // Compute de integral contribution (position integrate)
     Vector3d i_position_error_contribution = position_Ki_lin_mat_ * position_accum_error_;
+
+    // std::cout << "Kp: " << position_Kp_lin_mat_.diagonal()[0] << ", " << position_Kp_lin_mat_.diagonal()[1] << ", "
+    //           << position_Kp_lin_mat_.diagonal()[2] << std::endl;
+
+    // std::cout << "Ki: " << position_Ki_lin_mat_.diagonal()[0] << ", " << position_Ki_lin_mat_.diagonal()[1] << ", "
+    //           << position_Ki_lin_mat_.diagonal()[2] << std::endl;
+
+    // std::cout << "Kd: " << position_Kd_lin_mat_.diagonal()[0] << ", " << position_Kd_lin_mat_.diagonal()[1] << ", "
+    //           << position_Kd_lin_mat_.diagonal()[2] << std::endl;
 
     // std::cout << "p_position_error_contribution: " << p_position_error_contribution.x() << " "
     //           << p_position_error_contribution.y() << " " << p_position_error_contribution.z() << std::endl;

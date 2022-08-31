@@ -23,6 +23,9 @@ FollowTarget::FollowTarget() : as2::Node("follow_target")
     base_struct.speed_limit = speed_limit_;
     pickup_handler_ = std::make_shared<ft_pickup::PickUp>(base_struct);
     unpick_handler_ = std::make_shared<ft_unpick::UnPick>(base_struct);
+    dynamic_follow_handler_ = std::make_shared<ft_dynamic_follow::DynamicFollow>(base_struct);
+
+    end_time_ = this->now();
 
     static auto parameters_callback_handle_ =
         this->add_on_set_parameters_callback(std::bind(&FollowTarget::parametersCallback, this, std::placeholders::_1));
@@ -46,9 +49,37 @@ CallbackReturn FollowTarget::on_configure(const rclcpp_lifecycle::State &_state)
         approximate_policy(5), *(sl_pose_sub_.get()), *(sl_twist_sub_.get()));
     synchronizer_->registerCallback(&FollowTarget::state_callback, this);
 
-    target_pose_sub_ = this->create_subscription<geometry_msgs::msg::PoseStamped>(
-        target_topic_, as2_names::topics::sensor_measurements::qos,
-        std::bind(&FollowTarget::targetPoseCallback, this, std::placeholders::_1));
+    std::string target_pickup_topic_ = this->get_parameter("pickup.target_topic").as_string();
+    if (target_pickup_topic_ != "")
+    {
+        target_pickup_pose_sub_ = this->create_subscription<geometry_msgs::msg::PoseStamped>(
+            target_pickup_topic_, as2_names::topics::sensor_measurements::qos,
+            std::bind(&FollowTarget::targetPickUpPoseCallback, this, std::placeholders::_1));
+    }
+
+    std::string target_unpick_topic_ = this->get_parameter("unpick.target_topic").as_string();
+    if (target_unpick_topic_ != "")
+    {
+        target_unpick_pose_sub_ = this->create_subscription<geometry_msgs::msg::PoseStamped>(
+            target_unpick_topic_, as2_names::topics::sensor_measurements::qos,
+            std::bind(&FollowTarget::targetUnPickPoseCallback, this, std::placeholders::_1));
+    }
+
+    std::string target_dynamic_land_topic_ = this->get_parameter("dynamicLand.target_topic").as_string();
+    if (target_dynamic_land_topic_ != "")
+    {
+        target_dynamic_land_pose_sub_ = this->create_subscription<geometry_msgs::msg::PoseStamped>(
+            target_dynamic_land_topic_, as2_names::topics::sensor_measurements::qos,
+            std::bind(&FollowTarget::targetDynamicLandPoseCallback, this, std::placeholders::_1));
+    }
+
+    std::string target_dynamic_follow_topic_ = this->get_parameter("dynamicFollow.target_topic").as_string();
+    if (target_dynamic_follow_topic_ != "")
+    {
+        target_dynamic_follow_pose_sub_ = this->create_subscription<geometry_msgs::msg::PoseStamped>(
+            target_dynamic_follow_topic_, as2_names::topics::sensor_measurements::qos,
+            std::bind(&FollowTarget::targetDynamicFollowPoseCallback, this, std::placeholders::_1));
+    }
 
     // Publishers
     info_pub_ = this->create_publisher<as2_msgs::msg::FollowTargetInfo>(as2_names::topics::follow_target::info,
@@ -126,9 +157,15 @@ void FollowTarget::declare_parameters()
         base_frame_ = generateTfName(ns, base_frame);
     }
 
-    this->declare_parameter("target_topic", "/target_pose");
-    // ft_utils::declareParameters(this, "target_topic", "/target_pose");
-    target_topic_ = this->get_parameter("target_topic").as_string();
+    this->declare_parameter("pickup.target_topic", "");
+    this->declare_parameter("unpick.target_topic", "");
+    this->declare_parameter("dynamicLand.target_topic", "");
+    this->declare_parameter("dynamicFollow.target_topic", "");
+
+    // ft_utils::declareParameters(this, "pickup.target_topic", "");
+    // ft_utils::declareParameters(this, "unpick.target_topic", "");
+    // ft_utils::declareParameters(this, "dynamicLand.target_topic", "");
+    // ft_utils::declareParameters(this, "dynamicFollow.target_topic", "");
 
     // Dynamic parameters
     std::vector<std::string> params_to_declare(dynamic_parameters);
@@ -147,6 +184,7 @@ void FollowTarget::declare_parameters()
     // PickUp parameters
     pickup_handler_->declareParameters();
     unpick_handler_->declareParameters();
+    dynamic_follow_handler_->declareParameters();
 }
 
 rcl_interfaces::msg::SetParametersResult FollowTarget::parametersCallback(
@@ -162,11 +200,20 @@ rcl_interfaces::msg::SetParametersResult FollowTarget::parametersCallback(
         {
             // RCLCPP_INFO(this->get_logger(), "FollowTarget-UpdateParam: %s", param.get_name().c_str());
             if (param.get_name() == "speed_limit.vx")
+            {
                 speed_limit_->x() = param.get_value<double>();
+                speed_limit_default_.x() = param.get_value<double>();
+            }
             else if (param.get_name() == "speed_limit.vy")
+            {
                 speed_limit_->y() = param.get_value<double>();
+                speed_limit_default_.y() = param.get_value<double>();
+            }
             else if (param.get_name() == "speed_limit.vz")
+            {
                 speed_limit_->z() = param.get_value<double>();
+                speed_limit_default_.z() = param.get_value<double>();
+            }
         }
         else if (controller_handler_->isParameter(param.get_name()))
         {
@@ -177,6 +224,7 @@ rcl_interfaces::msg::SetParametersResult FollowTarget::parametersCallback(
         {
             pickup_handler_->updateParam(param);
             unpick_handler_->updateParam(param);
+            dynamic_follow_handler_->updateParam(param);
         }
     }
     return result;
@@ -189,18 +237,56 @@ void FollowTarget::state_callback(const geometry_msgs::msg::PoseStamped::ConstSh
     *sl_twist_.get() = *twist_msg.get();
     manage_flags_.state_received = true;
     return;
-}
+};
 
-void FollowTarget::targetPoseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr _msg)
+void FollowTarget::targetPickUpPoseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr _msg)
 {
-    *target_pose_.get() = *_msg.get();
-    manage_flags_.ref_received = true;
+    if (current_state_.follow_mode == as2_msgs::msg::FollowTargetInfo::PICKUP&&
+        current_state_.follow_status == as2_msgs::msg::FollowTargetInfo::RUNNING)
+    {
+        *target_pose_.get() = *_msg.get();
+        manage_flags_.ref_received = true;
+    }
+    return;
+};
+
+void FollowTarget::targetUnPickPoseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr _msg)
+{
+    if (current_state_.follow_mode == as2_msgs::msg::FollowTargetInfo::UNPICK&&
+        current_state_.follow_status == as2_msgs::msg::FollowTargetInfo::RUNNING)
+    {
+        *target_pose_.get() = *_msg.get();
+        manage_flags_.ref_received = true;
+    }
+    return;
+};
+
+void FollowTarget::targetDynamicLandPoseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr _msg)
+{
+    if (current_state_.follow_mode == as2_msgs::msg::FollowTargetInfo::DYNAMIC_LAND&&
+        current_state_.follow_status == as2_msgs::msg::FollowTargetInfo::RUNNING)
+    {
+        *target_pose_.get() = *_msg.get();
+        manage_flags_.ref_received = true;
+    }
+    return;
+};
+
+void FollowTarget::targetDynamicFollowPoseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr _msg)
+{
+    if (current_state_.follow_mode == as2_msgs::msg::FollowTargetInfo::DYNAMIC_FOLLOWER &&
+        current_state_.follow_status == as2_msgs::msg::FollowTargetInfo::RUNNING)
+    {
+        *target_pose_.get() = *_msg.get();
+        manage_flags_.ref_received = true;
+    }
     return;
 }
 
 void FollowTarget::setDynamicLandSrvCall(const std::shared_ptr<as2_msgs::srv::DynamicLand::Request> _request,
                                          std::shared_ptr<as2_msgs::srv::DynamicLand::Response> _response)
 {
+    RCLCPP_INFO(this->get_logger(), "DynamicLandSrvCall");
     // Disable dynamic land
     if (current_state_.follow_status == as2_msgs::msg::FollowTargetInfo::DYNAMIC_LAND && !_request->enable)
     {
@@ -215,7 +301,7 @@ void FollowTarget::setDynamicLandSrvCall(const std::shared_ptr<as2_msgs::srv::Dy
         current_state_.follow_mode = as2_msgs::msg::FollowTargetInfo::DYNAMIC_LAND;
         current_state_.follow_status = as2_msgs::msg::FollowTargetInfo::RUNNING;
 
-        Eigen::Vector3d speed_limit = *speed_limit_.get();
+        Eigen::Vector3d speed_limit = speed_limit_default_;
         if (_request->speed_limit.linear.x != 0)
             speed_limit.x() = _request->speed_limit.linear.x;
         if (_request->speed_limit.linear.y != 0)
@@ -223,6 +309,9 @@ void FollowTarget::setDynamicLandSrvCall(const std::shared_ptr<as2_msgs::srv::Dy
         if (_request->speed_limit.linear.z != 0)
             speed_limit.z() = _request->speed_limit.linear.z;
         *speed_limit_.get() = speed_limit;
+
+        dynamic_follow_handler_->resetState();
+        manage_flags_.ref_received = false;
 
         _response->success = true;
         return;
@@ -252,7 +341,7 @@ void FollowTarget::setPackagePickUpSrvCall(const std::shared_ptr<as2_msgs::srv::
         current_state_.follow_mode = as2_msgs::msg::FollowTargetInfo::PICKUP;
         current_state_.follow_status = as2_msgs::msg::FollowTargetInfo::RUNNING;
 
-        Eigen::Vector3d speed_limit = *speed_limit_.get();
+        Eigen::Vector3d speed_limit = speed_limit_default_;
         if (_request->speed_limit.linear.x != 0)
             speed_limit.x() = _request->speed_limit.linear.x;
         if (_request->speed_limit.linear.y != 0)
@@ -262,6 +351,7 @@ void FollowTarget::setPackagePickUpSrvCall(const std::shared_ptr<as2_msgs::srv::
         *speed_limit_.get() = speed_limit;
 
         pickup_handler_->resetState();
+        manage_flags_.ref_received = false;
 
         _response->success = true;
         return;
@@ -291,7 +381,7 @@ void FollowTarget::setPackageUnPickSrvCall(const std::shared_ptr<as2_msgs::srv::
         current_state_.follow_mode = as2_msgs::msg::FollowTargetInfo::UNPICK;
         current_state_.follow_status = as2_msgs::msg::FollowTargetInfo::RUNNING;
 
-        Eigen::Vector3d speed_limit = *speed_limit_.get();
+        Eigen::Vector3d speed_limit = speed_limit_default_;
         if (_request->speed_limit.linear.x != 0)
             speed_limit.x() = _request->speed_limit.linear.x;
         if (_request->speed_limit.linear.y != 0)
@@ -301,6 +391,7 @@ void FollowTarget::setPackageUnPickSrvCall(const std::shared_ptr<as2_msgs::srv::
         *speed_limit_.get() = speed_limit;
 
         unpick_handler_->resetState();
+        manage_flags_.ref_received = false;
 
         _response->success = true;
         return;
@@ -326,12 +417,15 @@ void FollowTarget::resetCommand()
 void FollowTarget::resetState()
 {
     RCLCPP_INFO(this->get_logger(), "Reset state");
-    current_state_.follow_status = as2_msgs::msg::FollowTargetInfo::WAITING;
-    current_state_.follow_mode = as2_msgs::msg::FollowTargetInfo::UNSET;
+    current_state_.follow_status = as2_msgs::msg::FollowTargetInfo::END;
+    end_time_ = this->now();
+    publishInfo();
     resetCommand();
     *speed_limit_.get() = Vector3d::Zero();
     pickup_handler_->resetState();
     unpick_handler_->resetState();
+    dynamic_follow_handler_->resetState();
+    manage_flags_.ref_received = false;
 }
 
 void FollowTarget::run()
@@ -341,7 +435,29 @@ void FollowTarget::run()
         RCLCPP_WARN_ONCE(this->get_logger(), "Follow target is not active");
         return;
     }
+
     publishInfo();
+
+    rclcpp::Time current_time = this->now();
+    if (current_state_.follow_status == as2_msgs::msg::FollowTargetInfo::END)
+    {
+        double dt_end = (current_time - end_time_).seconds();
+        if (dt_end > 5.0f)
+        {
+            RCLCPP_INFO(this->get_logger(), "Change mode from END to WAITING");
+            current_state_.follow_status = as2_msgs::msg::FollowTargetInfo::WAITING;
+            current_state_.follow_mode = as2_msgs::msg::FollowTargetInfo::UNSET;
+            manage_flags_.ref_received = false;
+        }
+    }
+
+    if (current_state_.follow_mode == as2_msgs::msg::FollowTargetInfo::UNSET ||
+        current_state_.follow_status == as2_msgs::msg::FollowTargetInfo::END ||
+        current_state_.follow_status == as2_msgs::msg::FollowTargetInfo::WAITING)
+    {
+        RCLCPP_INFO(this->get_logger(), "No follow mode");
+        return;
+    }
 
     if (!manage_flags_.ref_received || !manage_flags_.state_received)
     {
@@ -356,8 +472,7 @@ void FollowTarget::run()
         return;
     }
 
-    static rclcpp::Time last_time_ = rclcpp::Clock().now();
-    rclcpp::Time current_time = rclcpp::Clock().now();
+    static rclcpp::Time last_time_ = this->now();
     double dt = (current_time - last_time_).seconds();
     last_time_ = current_time;
     if (dt == 0)
@@ -383,6 +498,7 @@ void FollowTarget::run()
         break;
     case as2_msgs::msg::FollowTargetInfo::DYNAMIC_LAND:
         RCLCPP_INFO(this->get_logger(), "DYNAMIC_LAND");
+        dynamic_follow_handler_->run(dt);
         return;
         break;
     default:

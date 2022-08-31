@@ -13,6 +13,7 @@
 #include "motion_reference_handlers/speed_motion.hpp"
 #include <rclcpp/rclcpp.hpp>
 
+#include "ft_dynamic_follow.hpp"
 #include "ft_pickup.hpp"
 #include "ft_speed_controller.hpp"
 #include "ft_unpick.hpp"
@@ -72,8 +73,17 @@ class FollowTarget : public as2::Node
                         const geometry_msgs::msg::TwistStamped::ConstSharedPtr twist_msg);
 
     // Target localizacion
-    rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr target_pose_sub_;
-    void targetPoseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr _msg);
+    rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr target_pickup_pose_sub_;
+    void targetPickUpPoseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr _msg);
+
+    rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr target_unpick_pose_sub_;
+    void targetUnPickPoseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr _msg);
+
+    rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr target_dynamic_land_pose_sub_;
+    void targetDynamicLandPoseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr _msg);
+
+    rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr target_dynamic_follow_pose_sub_;
+    void targetDynamicFollowPoseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr _msg);
 
     /* Publishers */
 
@@ -106,6 +116,7 @@ class FollowTarget : public as2::Node
 
     std::shared_ptr<ft_pickup::PickUp> pickup_handler_;
     std::shared_ptr<ft_unpick::UnPick> unpick_handler_;
+    std::shared_ptr<ft_dynamic_follow::DynamicFollow> dynamic_follow_handler_;
 
     std::unique_ptr<tf2_ros::Buffer> tfBuffer_;
     std::shared_ptr<tf2_ros::TransformListener> tfListener_{nullptr};
@@ -117,9 +128,11 @@ class FollowTarget : public as2::Node
     std::shared_ptr<geometry_msgs::msg::TwistStamped> sl_twist_;
     std::shared_ptr<geometry_msgs::msg::PoseStamped> target_pose_;
     std::shared_ptr<Vector3d> speed_limit_;
+    Vector3d speed_limit_default_;
 
     std::string base_frame_ = "";
-    std::string target_topic_ = "/target_pose";
+
+    rclcpp::Time end_time_;
 
     std::vector<std::string> dynamic_parameters = {"speed_limit.vx", "speed_limit.vy", "speed_limit.vz"};
 

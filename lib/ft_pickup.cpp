@@ -118,7 +118,7 @@ void PickUp::computeGripperTransform()
     Eigen::Vector3d gripper_end_effector_position = uav_rotation * gripper_traslation;
 }
 
-void PickUp::resetState()
+void PickUp::ownResetState()
 {
     current_phase_ = 0;
     return;
@@ -130,6 +130,7 @@ void PickUp::ownRun(const double &dt)
     Eigen::Vector3d speed_limit = *speed_limit_.get();
     bool proportional_speed_limit = proportional_limitation_;
     double yaw_speed = 0.0;
+    static rclcpp::Time pick_up_time = node_ptr_->now();
 
     switch (current_phase_)
     {
@@ -137,7 +138,9 @@ void PickUp::ownRun(const double &dt)
         RCLCPP_INFO(node_ptr_->get_logger(), "Pickup phase 0: Approach to vessel");
         publishGripper(false);
 
-        reference_pose_.position.z = vessel_height_;
+        // reference_pose_.position.z = vessel_height_;
+        proportional_speed_limit = false;
+        reference_pose_.position.z = 5.0f;
 
         double distance2d = ft_utils::computeDistance2D(sl_pose_->pose.position.x, sl_pose_->pose.position.y,
                                                         target_pose_->pose.position.x, target_pose_->pose.position.y);
@@ -146,58 +149,57 @@ void PickUp::ownRun(const double &dt)
 
         double relative_speed = computeRelativeSpeedTargetUav2d().norm();
 
-        if (distance2d >= 2.5)
+        if (distance2d >= 10.0f)
         {
-            yaw_speed = computeYawControl(dt, getPathFacingAngle(dt));
+            yaw_speed = computeYawControl(dt, getPathFacingAngle());
         }
 
-        if (distance2d < pickup_approach_2D_threshold_ * 20.0 && distance1d < pickup_approach_height_threshold_ * 20.0)
+        if (distance2d < pickup_approach_2D_threshold_ * 10.0 && distance1d < pickup_approach_height_threshold_ * 10.0)
         {
             current_phase_++;
         }
         break;
     }
+    // case 1: {
+    //     RCLCPP_INFO(node_ptr_->get_logger(), "Pickup phase 1: Set angle with target speed");
+    //     publishGripper(false);
+
+    //     reference_pose_.position.z = vessel_height_;
+
+    //     double distance2d = ft_utils::computeDistance2D(sl_pose_->pose.position.x, sl_pose_->pose.position.y,
+    //                                                     target_pose_->pose.position.x, target_pose_->pose.position.y);
+
+    //     double distance1d = ft_utils::computeDistance1D(sl_pose_->pose.position.z, reference_pose_.position.z);
+
+    //     double relative_speed = computeRelativeSpeedTargetUav2d().norm();
+
+    //     double yaw_diff = 0.0f;
+    //     if (Eigen::Vector2d(target_twist_.linear.x, target_twist_.linear.y).norm() > 0.2f)
+    //     {
+    //         yaw_speed = computeYawControl(
+    //             dt, as2::FrameUtils::getVector2DAngle(target_twist_.linear.x, target_twist_.linear.y));
+
+    //         yaw_diff = computeYawDiff(as2::FrameUtils::getVector2DAngle(target_twist_.linear.x, target_twist_.linear.y),
+    //                                   as2::FrameUtils::getYawFromQuaternion(sl_pose_->pose.orientation));
+    //     }
+
+    //     if (distance2d < pickup_approach_2D_threshold_ * 10.0 &&
+    //         distance1d < pickup_approach_height_threshold_ * 10.0 &&
+    //         relative_speed < pickup_approach_speed_threshold_ && yaw_diff < 0.1)
+    //     {
+    //         current_phase_++;
+    //     }
+
+    //     break;
+    // }
     case 1: {
-        RCLCPP_INFO(node_ptr_->get_logger(), "Pickup phase 1: Set angle with target speed");
+        RCLCPP_INFO(node_ptr_->get_logger(), "Pickup phase 1: Approach to target");
         publishGripper(false);
 
-        reference_pose_.position.z = vessel_height_;
-
-        double distance2d = ft_utils::computeDistance2D(sl_pose_->pose.position.x, sl_pose_->pose.position.y,
-                                                        target_pose_->pose.position.x, target_pose_->pose.position.y);
-
-        double distance1d = ft_utils::computeDistance1D(sl_pose_->pose.position.z, reference_pose_.position.z);
-
-        double relative_speed = computeRelativeSpeedTargetUav2d().norm();
-
-        yaw_speed =
-            computeYawControl(dt, as2::FrameUtils::getVector2DAngle(target_twist_.linear.x, target_twist_.linear.y));
-
-        double yaw_diff =
-            computeYawDiff(as2::FrameUtils::getVector2DAngle(target_twist_.linear.x, target_twist_.linear.y),
-                           as2::FrameUtils::getYawFromQuaternion(sl_pose_->pose.orientation));
-
-        if (distance2d < pickup_approach_2D_threshold_ * 10.0 &&
-            distance1d < pickup_approach_height_threshold_ * 10.0 &&
-            relative_speed < pickup_approach_speed_threshold_ && yaw_diff < 0.2)
-        {
-            current_phase_++;
-        }
-
-        break;
-    }
-    case 2: {
-        RCLCPP_INFO(node_ptr_->get_logger(), "Pickup phase 2: Approach to target");
-        publishGripper(false);
-
-        reference_pose_.position.z = target_mean_height + 0.7 + gripper_height_;
-
-        // RCLCPP_INFO(node_ptr_->get_logger(), "target_mean_height: %f", target_mean_height);
-        // RCLCPP_INFO(node_ptr_->get_logger(), "sl_pose_->pose.position.z: %f", sl_pose_->pose.position.z);
-        // RCLCPP_INFO(node_ptr_->get_logger(), "reference_pose_.position.z: %f", reference_pose_.position.z);
+        reference_pose_.position.z = target_mean_height + 0.5 + gripper_height_;
 
         proportional_speed_limit = false;
-        speed_limit.z() = 0.3;
+        speed_limit.z() = 0.2f;
 
         double distance2d = ft_utils::computeDistance2D(sl_pose_->pose.position.x, sl_pose_->pose.position.y,
                                                         target_pose_->pose.position.x, target_pose_->pose.position.y);
@@ -205,46 +207,43 @@ void PickUp::ownRun(const double &dt)
         double distance1d = ft_utils::computeDistance1D(sl_pose_->pose.position.z, reference_pose_.position.z);
 
         double relative_speed = computeRelativeSpeedTargetUav2d().norm();
-
-        // if (!(distance2d < pickup_approach_2D_threshold_))
-        // {
-        //     RCLCPP_INFO(node_ptr_->get_logger(), "distance2d to large: %f of %f", distance2d,
-        //                 pickup_approach_2D_threshold_);
-        // }
-        // if (!(distance1d < pickup_approach_height_threshold_))
-        // {
-        //     RCLCPP_INFO(node_ptr_->get_logger(), "distance1d to large: %f of %f", distance1d,
-        //                 pickup_approach_height_threshold_);
-        // }
-        // if (!(relative_speed < pickup_approach_speed_threshold_))
-        // {
-        //     RCLCPP_INFO(node_ptr_->get_logger(), "relative_speed to large: %f of %f", relative_speed,
-        //                 pickup_approach_speed_threshold_);
-        // }
 
         if (distance2d < pickup_approach_2D_threshold_ && distance1d < pickup_approach_height_threshold_ &&
             relative_speed < pickup_approach_speed_threshold_)
         {
             current_phase_++;
+            pick_up_time = node_ptr_->now();
         }
 
-        // if (ft_utils::computeDistance2D(sl_pose_->pose.position.x, sl_pose_->pose.position.y,
-        //                                 target_pose_->pose.position.x,
-        //                                 target_pose_->pose.position.y) < pickup_approach_2D_threshold_ &&
-        //     ft_utils::computeDistance1D(sl_pose_->pose.position.z, reference_pose_.position.z) <
-        //         pickup_approach_height_threshold_ &&
-        //     computeRelativeSpeedTargetUav2d().norm() < pickup_approach_speed_threshold_)
         break;
     }
-    case 3: {
-        RCLCPP_INFO(node_ptr_->get_logger(), "Pickup phase 3: Pickup");
+    case 2: {
+        RCLCPP_INFO(node_ptr_->get_logger(), "Pickup phase 2: Pickup");
+
+        rclcpp::Time current_time = node_ptr_->now();
+        double time_diff = (current_time - pick_up_time).seconds();
+
         publishGripper(true);
 
         computeGripperTransform();
-        reference_pose_.position.z -= gripper_height_ + 0.02;
 
         proportional_speed_limit = false;
-        speed_limit.z() = 0.1;
+
+        Eigen::Vector3d motion_speed_ = computeControl(dt, speed_limit, proportional_speed_limit);
+
+        if (time_diff > 6.0f)
+        {
+            RCLCPP_WARN(node_ptr_->get_logger(), "Pickup failed. Retrying...");
+            vessel_height_ = 2.0f;
+            current_phase_ = 1;
+            motion_handler_speed_->sendSpeedCommandWithYawSpeed(motion_speed_.x(), motion_speed_.y(), 1.0f, 0.0f);
+            return;
+        }
+
+        motion_handler_speed_->sendSpeedCommandWithYawSpeed(motion_speed_.x(), motion_speed_.y(), -0.5f, yaw_speed);
+
+        // reference_pose_.position.z -= gripper_height_ + 0.3f;
+        // speed_limit.z() = 0.1f;
 
         if (object_gripped_)
         {
@@ -254,27 +253,25 @@ void PickUp::ownRun(const double &dt)
         }
         break;
     }
-    case 4: {
+    case 3: {
         if (!gripper_contact_)
         {
             current_phase_ = 0;
         }
-        RCLCPP_INFO(node_ptr_->get_logger(), "Pickup phase 4: Hold object");
+        RCLCPP_INFO(node_ptr_->get_logger(), "Pickup phase 3: Hold object");
         publishGripper(true);
 
         reference_pose_.position.x = pickup_position_.x();
         reference_pose_.position.y = pickup_position_.y();
         reference_pose_.position.z = pickup_position_.z() + vessel_height_;
 
-        RCLCPP_INFO(node_ptr_->get_logger(), "Go to pickup position: %f, %f, %f", reference_pose_.position.x,
-                    reference_pose_.position.y, reference_pose_.position.z);
+        // RCLCPP_INFO(node_ptr_->get_logger(), "Go to pickup position: %f, %f, %f", reference_pose_.position.x,
+        //             reference_pose_.position.y, reference_pose_.position.z);
 
-        // if (computeDistance1D(sl_pose_.pose.position.z, ref_pose_.pose.position.z) < 0.1)
-        //     motion_handler_speed_->sendSpeedCommandWithYawSpeed(0.0f, 0.0f, 1.0f, 0.0);
         if (!object_gripped_)
         {
             RCLCPP_WARN(node_ptr_->get_logger(), "Object not gripped");
-            current_phase_ = 2;
+            current_phase_ = 1;
         }
         else if (sl_pose_->pose.position.z > reference_pose_.position.z)
         {
@@ -290,10 +287,12 @@ void PickUp::ownRun(const double &dt)
 
     Eigen::Vector3d motion_speed_ = computeControl(dt, speed_limit, proportional_speed_limit);
 
-    // RCLCPP_INFO(node_ptr_->get_logger(), "motion_speed_: %f, %f, %f \n", motion_speed_.x(), motion_speed_.y(),
-    //             motion_speed_.z());
     motion_handler_speed_->sendSpeedCommandWithYawSpeed(motion_speed_.x(), motion_speed_.y(), motion_speed_.z(),
                                                         yaw_speed);
+
+    // RCLCPP_INFO(node_ptr_->get_logger(), "motion_speed_: %f, %f, %f \n", motion_speed_.x(), motion_speed_.y(),
+    //             motion_speed_.z());
+
     return;
 };
 } // namespace ft_pickup

@@ -42,6 +42,7 @@ set(SOURCE_CPP_FILES
   lib/ft_utils.cpp
   lib/ft_pickup.cpp
   lib/ft_unpick.cpp
+  lib/ft_dynamic_follow.cpp
 
   # lib/ft_dynamic_land.cpp
 )

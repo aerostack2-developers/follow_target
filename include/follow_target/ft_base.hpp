@@ -52,13 +52,20 @@ class FollowTargetBase
 
   private:
     bool first_run = true;
-    geometry_msgs::msg::Pose last_target_pose_;
+    geometry_msgs::msg::PoseStamped last_target_pose_;
 
     float target_twist_alpha_ = 1.0f;
     float target_pose_predict_factor_ = 0.0f;
     float target_height_alpha_ = 1.0f;
     std::vector<std::string> base_parameters = {"base.proportional_limitation", "base.target_twist_alpha",
                                                 "base.target_pose_predict_factor", "base.target_height_alpha"};
+
+
+    double last_vx;
+    double last_vy;
+    double last_vz;
+
+    double last_target_height;
 
   public:
     bool finished = false;
@@ -67,17 +74,18 @@ class FollowTargetBase
     void declareParameters();
     void updateParam(const rclcpp::Parameter param);
     void run(const double &dt);
-    virtual void resetState() = 0;
+    void resetState();
 
   protected:
     virtual void ownDeclareParameters(){};
     virtual void ownUpdateParam(const rclcpp::Parameter param){};
     virtual void ownRun(const double &dt) = 0;
+    virtual void ownResetState(){};
 
     Eigen::Vector3d computeControl(const double &dt, const Eigen::Vector3d &speed_limit,
                                    const bool &proportional_limitation);
 
-    double getPathFacingAngle(const double &dt);
+    double getPathFacingAngle();
     double computeYawControl(const double &dt, const double &desired_yaw);
     double computeYawDiff(const double &desired_yaw, const double &current_yaw);
 
@@ -87,9 +95,9 @@ class FollowTargetBase
     Eigen::Vector3d computeRelativeSpeedTargetUav3d();
 
   private:
-    void computeTargetSpeed(const double &dt);
+    void computeTargetSpeed();
     void computeReference(const double &dt);
-    void computeTargetMeanHeight(const double &dt);
+    void computeTargetMeanHeight();
 };
 }; // namespace ft_base
 

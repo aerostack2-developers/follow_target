@@ -42,18 +42,36 @@ void FollowTargetBase::updateParam(const rclcpp::Parameter param)
     return;
 };
 
-void FollowTargetBase::computeTargetSpeed(const double &dt)
+void FollowTargetBase::resetState()
+{
+    ownResetState();
+    first_run = true;
+    return;
+};
+
+void FollowTargetBase::computeTargetSpeed()
 {
     // Linear velocity
+    rclcpp::Duration duration(target_pose_->header.stamp.sec, target_pose_->header.stamp.nanosec);
+    rclcpp::Duration duration_last(last_target_pose_.header.stamp.sec, last_target_pose_.header.stamp.nanosec);
+    double dt = (duration - duration_last).seconds();
+    if (dt <= 0.0)
+    {
+        return;
+    }
+
     geometry_msgs::msg::Pose delta_pose;
 
-    delta_pose.position.x = target_pose_->pose.position.x - last_target_pose_.position.x;
-    delta_pose.position.y = target_pose_->pose.position.y - last_target_pose_.position.y;
-    delta_pose.position.z = target_pose_->pose.position.z - last_target_pose_.position.z;
+    delta_pose.position.x = target_pose_->pose.position.x - last_target_pose_.pose.position.x;
+    delta_pose.position.y = target_pose_->pose.position.y - last_target_pose_.pose.position.y;
+    delta_pose.position.z = target_pose_->pose.position.z - last_target_pose_.pose.position.z;
 
-    static auto last_vx = delta_pose.position.x / dt;
-    static auto last_vy = delta_pose.position.y / dt;
-    static auto last_vz = delta_pose.position.z / dt;
+    if (first_run)
+    {
+        last_vx = delta_pose.position.x / dt;
+        last_vy = delta_pose.position.y / dt;
+        last_vz = delta_pose.position.z / dt;
+    }
 
     target_twist_.linear.x = target_twist_alpha_ * (delta_pose.position.x / dt) + (1 - target_twist_alpha_) * last_vx;
     target_twist_.linear.y = target_twist_alpha_ * (delta_pose.position.y / dt) + (1 - target_twist_alpha_) * last_vy;
@@ -68,21 +86,43 @@ void FollowTargetBase::computeTargetSpeed(const double &dt)
 void FollowTargetBase::computeReference(const double &dt)
 {
     reference_pose_ = target_pose_->pose;
-    reference_pose_.position.x += target_twist_.linear.x * dt * target_pose_predict_factor_;
-    reference_pose_.position.y += target_twist_.linear.y * dt * target_pose_predict_factor_;
-    reference_pose_.position.z += target_twist_.linear.z * dt * target_pose_predict_factor_;
+    rclcpp::Duration duration(target_pose_->header.stamp.sec, target_pose_->header.stamp.nanosec);
+    double delta_time = (node_ptr_->now() - duration).seconds();
+
+    // RCLCPP_INFO(node_ptr_->get_logger(), "Base-computeReference-Last time: %f", duration.seconds());
+    // RCLCPP_INFO(node_ptr_->get_logger(), "Base-computeReference-Current time: %f", node_ptr_->now().seconds());
+    // RCLCPP_INFO(node_ptr_->get_logger(), "Base-computeReference-Delta time: %f", delta_time);
+    // RCLCPP_INFO(node_ptr_->get_logger(), "Base-computeReference-Twist: %f %f %f", target_twist_.linear.x,
+    //             target_twist_.linear.y, target_twist_.linear.z);
+
+    // RCLCPP_INFO(node_ptr_->get_logger(), "Base-computeReference-Reference: %f %f %f", reference_pose_.position.x,
+    //             reference_pose_.position.y, reference_pose_.position.z);
+
+    reference_pose_.position.x += target_twist_.linear.x * (delta_time + target_pose_predict_factor_ * dt);
+    reference_pose_.position.y += target_twist_.linear.y * (delta_time + target_pose_predict_factor_ * dt);
+    reference_pose_.position.z += target_twist_.linear.z * (delta_time + target_pose_predict_factor_ * dt);
+
+    // RCLCPP_INFO(node_ptr_->get_logger(), "Base-computeReference-delta_time %f", delta_time);
+    // RCLCPP_INFO(node_ptr_->get_logger(), "Base-computeReference-Twist: %f %f %f", target_twist_.linear.x,
+    //             target_twist_.linear.y, target_twist_.linear.z);
+    // RCLCPP_INFO(node_ptr_->get_logger(), "Base-computeReference-Reference \n: %f %f %f", reference_pose_.position.x,
+    //             reference_pose_.position.y, reference_pose_.position.z);
+
+    // reference_pose_.position.x += target_twist_.linear.x * dt * target_pose_predict_factor_;
+    // reference_pose_.position.y += target_twist_.linear.y * dt * target_pose_predict_factor_;
+    // reference_pose_.position.z += target_twist_.linear.z * dt * target_pose_predict_factor_;
     return;
 };
 
-void FollowTargetBase::computeTargetMeanHeight(const double &dt)
+void FollowTargetBase::computeTargetMeanHeight()
 {
-    static double last_target_height = target_pose_->pose.position.z;
+    if (first_run)
+    {
+        last_target_height = target_pose_->pose.position.z;
+    }
+
     target_mean_height =
         target_height_alpha_ * target_pose_->pose.position.z + (1 - target_height_alpha_) * last_target_height;
-    // RCLCPP_INFO(node_ptr_->get_logger(), "target_height_alpha_: %f", target_height_alpha_);
-    // RCLCPP_INFO(node_ptr_->get_logger(), "Current height: %f", target_pose_->pose.position.z);
-    // RCLCPP_INFO(node_ptr_->get_logger(), "Last height: %f", last_target_pose_.position.z);
-
     return;
 };
 
@@ -106,14 +146,22 @@ Eigen::Vector3d FollowTargetBase::computeControl(const double &dt,
     //             control_cmd(2));
     // RCLCPP_INFO(node_ptr_->get_logger(), "Base-Control-Speed: %f %f %f", motion_speed(0), motion_speed(1),
     //             motion_speed(2));
-    Eigen::Vector3d error = (ref.pos - state.pos);
-    RCLCPP_INFO(node_ptr_->get_logger(), "Base-Control-Error: %f %f %f", error(0), error(1), error(2));
+    // Eigen::Vector3d error = (ref.pos - state.pos);
+    // RCLCPP_INFO(node_ptr_->get_logger(), "Base-Control-Error: %f %f %f", error(0), error(1), error(2));
     // RCLCPP_INFO(node_ptr_->get_logger(), "Base-Control-Error: %f\n", error.norm());
 
     return motion_speed;
+
+    // static Eigen::Vector3d last_motion_speed = motion_speed;
+    // double motion_speed_alpha_ = 0.4;
+    // motion_speed.x() = motion_speed_alpha_ * motion_speed.x() + (1 - motion_speed_alpha_) * last_motion_speed.x();
+    // motion_speed.y() = motion_speed_alpha_ * motion_speed.y() + (1 - motion_speed_alpha_) * last_motion_speed.y();
+    // motion_speed.z() = motion_speed_alpha_ * motion_speed.z() + (1 - motion_speed_alpha_) * last_motion_speed.z();
+
+    // return control_cmd;
 };
 
-double FollowTargetBase::getPathFacingAngle(const double &dt)
+double FollowTargetBase::getPathFacingAngle()
 {
     double x_dif = target_pose_->pose.position.x - sl_pose_->pose.position.x;
     double y_dif = target_pose_->pose.position.y - sl_pose_->pose.position.y;
@@ -166,14 +214,17 @@ void FollowTargetBase::run(const double &dt)
 {
     if (first_run)
     {
-        last_target_pose_ = target_pose_->pose;
-        first_run = false;
+        RCLCPP_WARN(node_ptr_->get_logger(), "First run");
+        last_target_pose_ = *target_pose_.get();
     }
-    computeTargetSpeed(dt);
+    
+    computeTargetSpeed();
     computeReference(dt);
-    computeTargetMeanHeight(dt);
+    computeTargetMeanHeight();
     ownRun(dt);
-    last_target_pose_ = target_pose_->pose;
+    last_target_pose_ = *target_pose_.get();
+
+    first_run = false;
 };
 
 } // namespace ft_base
