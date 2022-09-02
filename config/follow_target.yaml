@@ -11,7 +11,7 @@
       target_pose_predict_factor: 0.0
       target_height_alpha: 0.01
     pickup:
-      target_topic: "object_pose"
+      target_topic: "object_pose_target"
       gripper_state_topic: "gripper/contacts/bottom"
       gripper_actuator_topic: "gripper/suction_on"
       pickup_approach_2D_threshold: 0.05
@@ -20,7 +20,7 @@
       gripper_height: 0.04
       vessel_height: 8.0
     unpick:
-      target_topic: "usv_pose"
+      target_topic: "/usv/ground_truth/pose"
       gripper_state_topic: "gripper/contacts/bottom"
       gripper_actuator_topic: "gripper/suction_on"
       unpick_approach_2D_threshold: 0.1

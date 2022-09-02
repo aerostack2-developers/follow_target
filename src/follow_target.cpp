@@ -497,7 +497,9 @@ void FollowTarget::run()
         return;
         break;
     case as2_msgs::msg::FollowTargetInfo::DYNAMIC_LAND:
-        RCLCPP_INFO(this->get_logger(), "DYNAMIC_LAND");
+        return;
+        break;
+    case as2_msgs::msg::FollowTargetInfo::DYNAMIC_FOLLOWER:
         dynamic_follow_handler_->run(dt);
         return;
         break;

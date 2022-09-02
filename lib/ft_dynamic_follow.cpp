@@ -48,8 +48,8 @@ void DynamicFollow::ownRun(const double &dt)
     }
 
     // Desired reference_pose_ is X distance from target_pose_ with desired_yaw angle
-    double distance = 0.5f;
-    double desired_z = 15.0f;
+    double distance = 0.0f;
+    double desired_z = 20.0f;
 
     reference_pose_.position.x = target_pose_->pose.position.x - distance * cos(desired_yaw);
     reference_pose_.position.y = target_pose_->pose.position.y - distance * sin(desired_yaw);
