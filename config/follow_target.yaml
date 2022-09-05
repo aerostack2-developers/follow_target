@@ -11,7 +11,7 @@
       target_pose_predict_factor: 0.0
       target_height_alpha: 0.01
     pickup:
-      target_topic: "object_pose_target"
+      target_topic: "/small_blue_box/ground_truth/pose"
       gripper_state_topic: "gripper/contacts/bottom"
       gripper_actuator_topic: "gripper/suction_on"
       pickup_approach_2D_threshold: 0.05
@@ -20,7 +20,7 @@
       gripper_height: 0.04
       vessel_height: 8.0
     unpick:
-      target_topic: "/usv/ground_truth/pose"
+      target_topic: "/vesselE/ground_truth/pose"
       gripper_state_topic: "gripper/contacts/bottom"
       gripper_actuator_topic: "gripper/suction_on"
       unpick_approach_2D_threshold: 0.1
@@ -30,3 +30,9 @@
       vessel_height: 6.0
       object_height: 0.2
       delivery_height: 0.3
+    dynamicFollow:
+      target_topic: "/vesselE/ground_truth/pose"
+      height: 10.0
+      distance: 2.0
+      const_height: false
+

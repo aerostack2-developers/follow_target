@@ -6,6 +6,7 @@
 #include "as2_core/names/topics.hpp"
 #include "as2_core/node.hpp"
 #include "as2_msgs/msg/follow_target_info.hpp"
+#include "as2_msgs/srv/dynamic_follower.hpp"
 #include "as2_msgs/srv/dynamic_land.hpp"
 #include "as2_msgs/srv/package_pick_up.hpp"
 #include "as2_msgs/srv/package_un_pick.hpp"
@@ -107,6 +108,11 @@ class FollowTarget : public as2::Node
     rclcpp::Service<as2_msgs::srv::PackageUnPick>::SharedPtr set_package_unpick_srv_;
     void setPackageUnPickSrvCall(const std::shared_ptr<as2_msgs::srv::PackageUnPick::Request> _request,
                                  std::shared_ptr<as2_msgs::srv::PackageUnPick::Response> _response);
+
+    // Dynamic follow
+    rclcpp::Service<as2_msgs::srv::DynamicFollower>::SharedPtr set_dynamic_follow_srv_;
+    void setDynamicFollowSrvCall(const std::shared_ptr<as2_msgs::srv::DynamicFollower::Request> _request,
+                                 std::shared_ptr<as2_msgs::srv::DynamicFollower::Response> _response);
 
   private:
     bool is_active_;

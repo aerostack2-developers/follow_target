@@ -111,6 +111,13 @@ CallbackReturn FollowTarget::on_configure(const rclcpp_lifecycle::State &_state)
                   std::placeholders::_2  // Corresponds to the 'response' input
                   ));
 
+    set_dynamic_follow_srv_ = this->create_service<as2_msgs::srv::DynamicFollower>(
+        as2_names::services::behaviour::dynamic_follower,
+        std::bind(&FollowTarget::setDynamicFollowSrvCall, this,
+                  std::placeholders::_1, // Corresponds to the 'request'  input
+                  std::placeholders::_2  // Corresponds to the 'response' input
+                  ));
+
     return CallbackReturn::SUCCESS;
 };
 
@@ -241,7 +248,7 @@ void FollowTarget::state_callback(const geometry_msgs::msg::PoseStamped::ConstSh
 
 void FollowTarget::targetPickUpPoseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr _msg)
 {
-    if (current_state_.follow_mode == as2_msgs::msg::FollowTargetInfo::PICKUP&&
+    if (current_state_.follow_mode == as2_msgs::msg::FollowTargetInfo::PICKUP &&
         current_state_.follow_status == as2_msgs::msg::FollowTargetInfo::RUNNING)
     {
         *target_pose_.get() = *_msg.get();
@@ -252,7 +259,7 @@ void FollowTarget::targetPickUpPoseCallback(const geometry_msgs::msg::PoseStampe
 
 void FollowTarget::targetUnPickPoseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr _msg)
 {
-    if (current_state_.follow_mode == as2_msgs::msg::FollowTargetInfo::UNPICK&&
+    if (current_state_.follow_mode == as2_msgs::msg::FollowTargetInfo::UNPICK &&
         current_state_.follow_status == as2_msgs::msg::FollowTargetInfo::RUNNING)
     {
         *target_pose_.get() = *_msg.get();
@@ -263,7 +270,7 @@ void FollowTarget::targetUnPickPoseCallback(const geometry_msgs::msg::PoseStampe
 
 void FollowTarget::targetDynamicLandPoseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr _msg)
 {
-    if (current_state_.follow_mode == as2_msgs::msg::FollowTargetInfo::DYNAMIC_LAND&&
+    if (current_state_.follow_mode == as2_msgs::msg::FollowTargetInfo::DYNAMIC_LAND &&
         current_state_.follow_status == as2_msgs::msg::FollowTargetInfo::RUNNING)
     {
         *target_pose_.get() = *_msg.get();
@@ -281,7 +288,7 @@ void FollowTarget::targetDynamicFollowPoseCallback(const geometry_msgs::msg::Pos
         manage_flags_.ref_received = true;
     }
     return;
-}
+};
 
 void FollowTarget::setDynamicLandSrvCall(const std::shared_ptr<as2_msgs::srv::DynamicLand::Request> _request,
                                          std::shared_ptr<as2_msgs::srv::DynamicLand::Response> _response)
@@ -336,7 +343,8 @@ void FollowTarget::setPackagePickUpSrvCall(const std::shared_ptr<as2_msgs::srv::
         return;
     }
     // Enable pick up
-    else if (current_state_.follow_status == as2_msgs::msg::FollowTargetInfo::WAITING && _request->enable)
+    else if ((current_state_.follow_status == as2_msgs::msg::FollowTargetInfo::WAITING && _request->enable) ||
+             (current_state_.follow_mode == as2_msgs::msg::FollowTargetInfo::DYNAMIC_FOLLOWER && _request->enable))
     {
         current_state_.follow_mode = as2_msgs::msg::FollowTargetInfo::PICKUP;
         current_state_.follow_status = as2_msgs::msg::FollowTargetInfo::RUNNING;
@@ -376,7 +384,8 @@ void FollowTarget::setPackageUnPickSrvCall(const std::shared_ptr<as2_msgs::srv::
         return;
     }
     // Enable unpick
-    else if (current_state_.follow_status == as2_msgs::msg::FollowTargetInfo::WAITING && _request->enable)
+    else if ((current_state_.follow_status == as2_msgs::msg::FollowTargetInfo::WAITING && _request->enable) ||
+             (current_state_.follow_mode == as2_msgs::msg::FollowTargetInfo::DYNAMIC_FOLLOWER && _request->enable))
     {
         current_state_.follow_mode = as2_msgs::msg::FollowTargetInfo::UNPICK;
         current_state_.follow_status = as2_msgs::msg::FollowTargetInfo::RUNNING;
@@ -398,6 +407,46 @@ void FollowTarget::setPackageUnPickSrvCall(const std::shared_ptr<as2_msgs::srv::
     }
 
     RCLCPP_WARN(this->get_logger(), "Cannot change to un pick %d in state %d", _request->enable,
+                current_state_.follow_status);
+    _response->success = false;
+    return;
+};
+
+void FollowTarget::setDynamicFollowSrvCall(const std::shared_ptr<as2_msgs::srv::DynamicFollower::Request> _request,
+                                           std::shared_ptr<as2_msgs::srv::DynamicFollower::Response> _response)
+{
+    RCLCPP_INFO(this->get_logger(), "Dynamic follow service called");
+    // Disable dynamic follow
+    if (current_state_.follow_status == as2_msgs::msg::FollowTargetInfo::DYNAMIC_FOLLOWER && !_request->enable)
+    {
+        current_state_.follow_mode = as2_msgs::msg::FollowTargetInfo::WAITING;
+        current_state_.follow_status = as2_msgs::msg::FollowTargetInfo::UNSET;
+        _response->success = true;
+        return;
+    }
+    // Enable dynamic follow
+    else if (current_state_.follow_status == as2_msgs::msg::FollowTargetInfo::WAITING && _request->enable)
+    {
+        current_state_.follow_mode = as2_msgs::msg::FollowTargetInfo::DYNAMIC_FOLLOWER;
+        current_state_.follow_status = as2_msgs::msg::FollowTargetInfo::RUNNING;
+
+        Eigen::Vector3d speed_limit = speed_limit_default_;
+        if (_request->speed_limit.linear.x != 0)
+            speed_limit.x() = _request->speed_limit.linear.x;
+        if (_request->speed_limit.linear.y != 0)
+            speed_limit.y() = _request->speed_limit.linear.y;
+        if (_request->speed_limit.linear.z != 0)
+            speed_limit.z() = _request->speed_limit.linear.z;
+        *speed_limit_.get() = speed_limit;
+
+        dynamic_follow_handler_->resetState();
+        manage_flags_.ref_received = false;
+
+        _response->success = true;
+        return;
+    }
+
+    RCLCPP_WARN(this->get_logger(), "Cannot change to dynamic follow %d in state %d", _request->enable,
                 current_state_.follow_status);
     _response->success = false;
     return;
@@ -442,7 +491,7 @@ void FollowTarget::run()
     if (current_state_.follow_status == as2_msgs::msg::FollowTargetInfo::END)
     {
         double dt_end = (current_time - end_time_).seconds();
-        if (dt_end > 5.0f)
+        if (dt_end > 0.5f)
         {
             RCLCPP_INFO(this->get_logger(), "Change mode from END to WAITING");
             current_state_.follow_status = as2_msgs::msg::FollowTargetInfo::WAITING;

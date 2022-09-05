@@ -138,9 +138,8 @@ void PickUp::ownRun(const double &dt)
         RCLCPP_INFO(node_ptr_->get_logger(), "Pickup phase 0: Approach to vessel");
         publishGripper(false);
 
-        // reference_pose_.position.z = vessel_height_;
+        reference_pose_.position.z = vessel_height_;
         proportional_speed_limit = false;
-        reference_pose_.position.z = 5.0f;
 
         double distance2d = ft_utils::computeDistance2D(sl_pose_->pose.position.x, sl_pose_->pose.position.y,
                                                         target_pose_->pose.position.x, target_pose_->pose.position.y);
@@ -149,7 +148,7 @@ void PickUp::ownRun(const double &dt)
 
         double relative_speed = computeRelativeSpeedTargetUav2d().norm();
 
-        if (distance2d >= 20.0f)
+        if (distance2d >= 10.0f)
         {
             yaw_speed = computeYawControl(dt, getPathFacingAngle());
         }
@@ -193,13 +192,13 @@ void PickUp::ownRun(const double &dt)
     //     break;
     // }
     case 1: {
-        RCLCPP_INFO(node_ptr_->get_logger(), "Pickup phase 1: Approach to target");
+        RCLCPP_INFO(node_ptr_->get_logger(), "Pickup phase 2: Approach to target");
         publishGripper(false);
 
         reference_pose_.position.z = target_mean_height + 0.5 + gripper_height_;
 
         proportional_speed_limit = false;
-        speed_limit.z() = 0.2f;
+        speed_limit.z() = 0.25f;
 
         double distance2d = ft_utils::computeDistance2D(sl_pose_->pose.position.x, sl_pose_->pose.position.y,
                                                         target_pose_->pose.position.x, target_pose_->pose.position.y);
@@ -218,7 +217,7 @@ void PickUp::ownRun(const double &dt)
         break;
     }
     case 2: {
-        RCLCPP_INFO(node_ptr_->get_logger(), "Pickup phase 2: Pickup");
+        RCLCPP_INFO(node_ptr_->get_logger(), "Pickup phase 3: Pickup");
 
         rclcpp::Time current_time = node_ptr_->now();
         double time_diff = (current_time - pick_up_time).seconds();
@@ -258,7 +257,7 @@ void PickUp::ownRun(const double &dt)
         {
             current_phase_ = 0;
         }
-        RCLCPP_INFO(node_ptr_->get_logger(), "Pickup phase 3: Hold object");
+        RCLCPP_INFO(node_ptr_->get_logger(), "Pickup phase 4: Hold object");
         publishGripper(true);
 
         reference_pose_.position.x = pickup_position_.x();

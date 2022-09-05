@@ -195,7 +195,8 @@ void UnPick::ownRun(const double &dt)
         RCLCPP_INFO(node_ptr_->get_logger(), "UnPick phase 2: Approach to USV delivery point");
         publishGripper(true);
 
-        reference_pose_.position.z = target_mean_height + object_height_ + gripper_height_ + delivery_height_;
+        // reference_pose_.position.z = target_mean_height + object_height_ + gripper_height_ + delivery_height_;
+        reference_pose_.position.z = 1.5f;
 
         proportional_speed_limit = false;
         speed_limit.z() = 0.2;
@@ -269,14 +270,18 @@ void UnPick::ownRun(const double &dt)
     motion_handler_speed_->sendSpeedCommandWithYawSpeed(motion_speed_.x(), motion_speed_.y(), motion_speed_.z(),
                                                         yaw_speed);
 
+    // RCLCPP_INFO(node_ptr_->get_logger(), "target_pose: %f, %f, %f", target_pose_->pose.position.x,
+    //             target_pose_->pose.position.y, target_pose_->pose.position.z);
+
     // RCLCPP_INFO(node_ptr_->get_logger(), "reference_pose_: %f, %f, %f", reference_pose_.position.x,
     //             reference_pose_.position.y, reference_pose_.position.z);
     // RCLCPP_INFO(node_ptr_->get_logger(), "state: %f, %f, %f", sl_pose_->pose.position.x, sl_pose_->pose.position.y,
     //             sl_pose_->pose.position.z);
     // RCLCPP_INFO(node_ptr_->get_logger(), "motion_speed_: %f, %f, %f", motion_speed_.x(), motion_speed_.y(),
     //             motion_speed_.z());
-    // RCLCPP_INFO(node_ptr_->get_logger(), "speed_limit: %f, %f, %f", speed_limit.x(), speed_limit.y(), speed_limit.z());
-    // RCLCPP_INFO(node_ptr_->get_logger(), "proportional_speed_limit: %d \n", proportional_speed_limit);
+    // RCLCPP_INFO(node_ptr_->get_logger(), "speed_limit: %f, %f, %f", speed_limit.x(), speed_limit.y(),
+    // speed_limit.z()); RCLCPP_INFO(node_ptr_->get_logger(), "proportional_speed_limit: %d \n",
+    // proportional_speed_limit);
     return;
 };
 } // namespace ft_unpick

@@ -29,10 +29,16 @@ class DynamicFollow : public ft_base::FollowTargetBase
   private:
     int8_t current_phase_ = 0;
 
-    std::vector<std::string> dynamic_follow_parameters = {};
+    std::vector<std::string> dynamic_follow_parameters = {"dynamicFollow.height",
+                                                          "dynamicFollow.distance",
+                                                          "dynamicFollow.const_height"};
 
     Eigen::Vector3d dynamic_follow_position_;
     Eigen::Vector3d motion_speed_ = Eigen::Vector3d::Zero();
+
+    double height_ = 10.0f;
+    double distance_ = 1.5f;
+    bool const_height_ = false;
 
   protected:
     void ownRun(const double &dt) override;
