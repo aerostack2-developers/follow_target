@@ -43,7 +43,7 @@ void DynamicFollow::ownRun(const double &dt)
 
     double distance2d = ft_utils::computeDistance2D(sl_pose_->pose.position.x, sl_pose_->pose.position.y,
                                                     target_pose_->pose.position.x, target_pose_->pose.position.y);
-    if (distance2d > 2.0f)
+    if (distance2d > 1.0f)
     {
         desired_yaw = getPathFacingAngle();
         yaw_speed = computeYawControl(dt, desired_yaw);

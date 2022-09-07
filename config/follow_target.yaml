@@ -33,6 +33,6 @@
     dynamicFollow:
       target_topic: "vessel_target/computed"
       height: 10.0
-      distance: 2.0
+      distance: 0.5
       const_height: false
 
