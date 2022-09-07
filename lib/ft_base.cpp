@@ -233,6 +233,8 @@ void FollowTargetBase::run(const double &dt)
     computeTargetMeanHeight();
     ownRun(dt);
 
+    first_run = false;
+    
     double distance2d = ft_utils::computeDistance2D(last_target_pose_.pose.position.x, last_target_pose_.pose.position.y,
                                                     target_pose_->pose.position.x, target_pose_->pose.position.y);
 
@@ -241,8 +243,6 @@ void FollowTargetBase::run(const double &dt)
         last_target_pose_ = *target_pose_.get();
         return;
     }
-
-    first_run = false;
 };
 
 } // namespace ft_base
