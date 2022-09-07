@@ -85,9 +85,19 @@ void FollowTargetBase::computeTargetSpeed()
 
 void FollowTargetBase::computeReference(const double &dt)
 {
-    reference_pose_ = target_pose_->pose;
+    
     rclcpp::Duration duration(target_pose_->header.stamp.sec, target_pose_->header.stamp.nanosec);
     double delta_time = (node_ptr_->now() - duration).seconds();
+
+    double distance2d = ft_utils::computeDistance2D(last_target_pose_.pose.position.x, last_target_pose_.pose.position.y,
+                                                    target_pose_->pose.position.x, target_pose_->pose.position.y);
+
+    if (distance2d > 300.0)
+    {
+        reference_pose_ = last_target_pose_.pose;
+        return;
+    }
+    reference_pose_ = target_pose_->pose;
 
     // RCLCPP_INFO(node_ptr_->get_logger(), "Base-computeReference-Last time: %f", duration.seconds());
     // RCLCPP_INFO(node_ptr_->get_logger(), "Base-computeReference-Current time: %f", node_ptr_->now().seconds());
@@ -98,9 +108,9 @@ void FollowTargetBase::computeReference(const double &dt)
     // RCLCPP_INFO(node_ptr_->get_logger(), "Base-computeReference-Reference: %f %f %f", reference_pose_.position.x,
     //             reference_pose_.position.y, reference_pose_.position.z);
 
-    reference_pose_.position.x += target_twist_.linear.x * (delta_time + target_pose_predict_factor_ * dt);
-    reference_pose_.position.y += target_twist_.linear.y * (delta_time + target_pose_predict_factor_ * dt);
-    reference_pose_.position.z += target_twist_.linear.z * (delta_time + target_pose_predict_factor_ * dt);
+    // reference_pose_.position.x += target_twist_.linear.x * (delta_time + target_pose_predict_factor_ * dt);
+    // reference_pose_.position.y += target_twist_.linear.y * (delta_time + target_pose_predict_factor_ * dt);
+    // reference_pose_.position.z += target_twist_.linear.z * (delta_time + target_pose_predict_factor_ * dt);
 
     // RCLCPP_INFO(node_ptr_->get_logger(), "Base-computeReference-delta_time %f", delta_time);
     // RCLCPP_INFO(node_ptr_->get_logger(), "Base-computeReference-Twist: %f %f %f", target_twist_.linear.x,
@@ -222,7 +232,15 @@ void FollowTargetBase::run(const double &dt)
     computeReference(dt);
     computeTargetMeanHeight();
     ownRun(dt);
-    last_target_pose_ = *target_pose_.get();
+
+    double distance2d = ft_utils::computeDistance2D(last_target_pose_.pose.position.x, last_target_pose_.pose.position.y,
+                                                    target_pose_->pose.position.x, target_pose_->pose.position.y);
+
+    if (distance2d < 300.0)
+    {
+        last_target_pose_ = *target_pose_.get();
+        return;
+    }
 
     first_run = false;
 };
