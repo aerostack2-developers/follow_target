@@ -60,8 +60,8 @@ CallbackReturn FollowTarget::on_configure(const rclcpp_lifecycle::State &_state)
     std::string target_unpick_topic_ = this->get_parameter("unpick.target_topic").as_string();
     if (target_unpick_topic_ != "")
     {
-        target_unpick_pose_sub_ = this->create_subscription<geometry_msgs::msg::PoseStamped>(
-            target_unpick_topic_, as2_names::topics::sensor_measurements::qos,
+        target_unpick_pose_sub_ = this->create_subscription<as2_msgs::msg::PoseStampedWithID>(
+            target_unpick_topic_, rclcpp::SensorDataQoS(),
             std::bind(&FollowTarget::targetUnPickPoseCallback, this, std::placeholders::_1));
     }
 
@@ -257,12 +257,15 @@ void FollowTarget::targetPickUpPoseCallback(const geometry_msgs::msg::PoseStampe
     return;
 };
 
-void FollowTarget::targetUnPickPoseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr _msg)
+void FollowTarget::targetUnPickPoseCallback(const as2_msgs::msg::PoseStampedWithID::SharedPtr _msg)
 {
     if (current_state_.follow_mode == as2_msgs::msg::FollowTargetInfo::UNPICK &&
         current_state_.follow_status == as2_msgs::msg::FollowTargetInfo::RUNNING)
     {
-        *target_pose_.get() = *_msg.get();
+        geometry_msgs::msg::PoseStamped pose_msg;
+        pose_msg.header = _msg->header;
+        pose_msg.pose = _msg->pose;
+        *target_pose_.get() = pose_msg;
         manage_flags_.ref_received = true;
     }
     return;

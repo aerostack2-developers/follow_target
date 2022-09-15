@@ -22,7 +22,7 @@
     unpick:
       target_topic: "/usv/self_localization/pose"
       gripper_state_topic: "gripper/contacts/bottom"
-      gripper_actuator_topic: "gripper/suction_on"
+      gripper_actuator_topic: "open_box"
       unpick_approach_2D_threshold: 0.1
       unpick_approach_height_threshold: 0.1
       unpick_approach_speed_threshold: 0.2

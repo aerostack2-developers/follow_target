@@ -6,6 +6,7 @@
 #include "as2_core/names/topics.hpp"
 #include "as2_core/node.hpp"
 #include "as2_msgs/msg/follow_target_info.hpp"
+#include "as2_msgs/msg/pose_stamped_with_id.hpp"
 #include "as2_msgs/srv/dynamic_follower.hpp"
 #include "as2_msgs/srv/dynamic_land.hpp"
 #include "as2_msgs/srv/package_pick_up.hpp"
@@ -77,8 +78,8 @@ class FollowTarget : public as2::Node
     rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr target_pickup_pose_sub_;
     void targetPickUpPoseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr _msg);
 
-    rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr target_unpick_pose_sub_;
-    void targetUnPickPoseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr _msg);
+    rclcpp::Subscription<as2_msgs::msg::PoseStampedWithID>::SharedPtr target_unpick_pose_sub_;
+    void targetUnPickPoseCallback(const as2_msgs::msg::PoseStampedWithID::SharedPtr _msg);
 
     rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr target_dynamic_land_pose_sub_;
     void targetDynamicLandPoseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr _msg);

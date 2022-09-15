@@ -8,13 +8,13 @@
         y: 1.5
         z: 1.5
       position_Ki:
-        x: 0.1
-        y: 0.1
-        z: 0.1
+        x: 0.05
+        y: 0.05
+        z: 0.05
       position_Kd: 
-        x: 0.0
-        y: 0.0
-        z: 0.0
+        x: 0.001
+        y: 0.001
+        z: 0.001
     yaw_speed_controller:
       Kp: 1.0
       Ki: 0.001
