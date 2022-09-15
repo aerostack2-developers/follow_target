@@ -57,7 +57,8 @@ void UnPick::ownUpdateParam(rclcpp::Parameter param)
 
 void UnPick::gripperSensorCallback(const std::shared_ptr<std_msgs::msg::Bool> _msg)
 {
-    gripper_contact_ = _msg->data;
+    // gripper_contact_ = _msg->data;
+    gripper_contact_ = true;
     return;
 };
 
@@ -146,7 +147,7 @@ void UnPick::ownRun(const double &dt)
             yaw_speed = computeYawControl(dt, getPathFacingAngle());
         }
 
-        if (distance2d < unpick_approach_2D_threshold_ * 20.0 && distance1d < unpick_approach_height_threshold_ * 20.0)
+        if (distance2d < unpick_approach_2D_threshold_ * 10.0 && distance1d < unpick_approach_height_threshold_ * 10.0)
         {
             current_phase_++;
         }
@@ -174,10 +175,16 @@ void UnPick::ownRun(const double &dt)
         yaw_speed =
             computeYawControl(dt, as2::FrameUtils::getVector2DAngle(target_twist_.linear.x, target_twist_.linear.y));
 
-        double yaw_diff =
-            computeYawDiff(as2::FrameUtils::getVector2DAngle(target_twist_.linear.x, target_twist_.linear.y),
-                           as2::FrameUtils::getYawFromQuaternion(sl_pose_->pose.orientation));
+        double yaw_diff = 0.0;
 
+        if (Eigen::Vector2d(target_twist_.linear.x, target_twist_.linear.y).norm() > 1.0)
+        {
+            RCLCPP_INFO(node_ptr_->get_logger(), "Object is moving");
+            double yaw_diff =
+                computeYawDiff(as2::FrameUtils::getVector2DAngle(target_twist_.linear.x, target_twist_.linear.y),
+                            as2::FrameUtils::getYawFromQuaternion(sl_pose_->pose.orientation));
+        }
+        
         if (distance2d < unpick_approach_2D_threshold_ * 10.0 &&
             distance1d < unpick_approach_height_threshold_ * 10.0 &&
             relative_speed < unpick_approach_speed_threshold_ && yaw_diff < 0.2)
@@ -196,10 +203,10 @@ void UnPick::ownRun(const double &dt)
         publishGripper(true);
 
         // reference_pose_.position.z = target_mean_height + object_height_ + gripper_height_ + delivery_height_;
-        reference_pose_.position.z = 1.5f;
+        reference_pose_.position.z = 2.0f;
 
         proportional_speed_limit = false;
-        speed_limit.z() = 0.2;
+        speed_limit.z() = 0.25;
 
         double distance2d = ft_utils::computeDistance2D(sl_pose_->pose.position.x, sl_pose_->pose.position.y,
                                                         target_pose_->pose.position.x, target_pose_->pose.position.y);
@@ -223,6 +230,8 @@ void UnPick::ownRun(const double &dt)
     case 3: {
         RCLCPP_INFO(node_ptr_->get_logger(), "UnPick phase 3: Deliver object");
         publishGripper(false);
+        static rclcpp::Time unpick_time_ = node_ptr_->now();
+        double unpick_dt_ = (node_ptr_->now() - unpick_time_).seconds();
 
         reference_pose_.position.z = target_mean_height + object_height_ + gripper_height_ + delivery_height_;
         // RCLCPP_INFO(node_ptr_->get_logger(), "Delivery height: %f", reference_pose_.position.z);
@@ -235,7 +244,7 @@ void UnPick::ownRun(const double &dt)
         proportional_speed_limit = false;
         speed_limit.z() = 0.2;
 
-        if (!object_gripped_)
+        if (!object_gripped_ || unpick_dt_ > 4.0)
         {
             unpick_position_ =
                 Eigen::Vector3d(sl_pose_->pose.position.x, sl_pose_->pose.position.y, sl_pose_->pose.position.z);
