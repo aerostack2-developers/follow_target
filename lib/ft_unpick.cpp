@@ -244,7 +244,7 @@ void UnPick::ownRun(const double &dt)
         proportional_speed_limit = false;
         speed_limit.z() = 0.2;
 
-        if (!object_gripped_ || unpick_dt_ > 5.0)
+        if (unpick_dt_ > 10.0)
         {
             unpick_position_ =
                 Eigen::Vector3d(sl_pose_->pose.position.x, sl_pose_->pose.position.y, sl_pose_->pose.position.z);

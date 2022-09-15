@@ -27,7 +27,7 @@
       unpick_approach_height_threshold: 0.3
       unpick_approach_speed_threshold: 0.4
       gripper_height: 0.0
-      vessel_height: 5.0
+      vessel_height: 6.0
       object_height: 0.3
       delivery_height: 1.5
     dynamicFollow:
