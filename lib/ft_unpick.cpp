@@ -244,7 +244,7 @@ void UnPick::ownRun(const double &dt)
         proportional_speed_limit = false;
         speed_limit.z() = 0.2;
 
-        if (!object_gripped_ || unpick_dt_ > 4.0)
+        if (!object_gripped_ || unpick_dt_ > 5.0)
         {
             unpick_position_ =
                 Eigen::Vector3d(sl_pose_->pose.position.x, sl_pose_->pose.position.y, sl_pose_->pose.position.z);
@@ -254,7 +254,7 @@ void UnPick::ownRun(const double &dt)
     }
     case 4: {
         RCLCPP_INFO(node_ptr_->get_logger(), "UnPick phase 4: Hover");
-        publishGripper(true);
+        publishGripper(false);
 
         reference_pose_.position.x = unpick_position_.x();
         reference_pose_.position.y = unpick_position_.y();

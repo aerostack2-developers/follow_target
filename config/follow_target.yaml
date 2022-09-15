@@ -20,7 +20,7 @@
       gripper_height: 0.04
       vessel_height: 8.0
     unpick:
-      target_topic: "arucos_poses"
+      target_topic: "aruco_pose"
       gripper_state_topic: "gripper/contacts/bottom"
       gripper_actuator_topic: "open_box"
       unpick_approach_2D_threshold: 0.5
