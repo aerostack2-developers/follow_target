@@ -259,15 +259,20 @@ void FollowTarget::targetPickUpPoseCallback(const geometry_msgs::msg::PoseStampe
 
 void FollowTarget::targetUnPickPoseCallback(const as2_msgs::msg::PoseStampedWithID::SharedPtr _msg)
 {
-    if (current_state_.follow_mode == as2_msgs::msg::FollowTargetInfo::UNPICK &&
-        current_state_.follow_status == as2_msgs::msg::FollowTargetInfo::RUNNING)
-    {
-        geometry_msgs::msg::PoseStamped pose_msg;
-        pose_msg.header = _msg->header;
-        pose_msg.pose = _msg->pose;
-        *target_pose_.get() = pose_msg;
-        manage_flags_.ref_received = true;
-    }
+    // if (current_state_.follow_mode == as2_msgs::msg::FollowTargetInfo::UNPICK &&
+    //     current_state_.follow_status == as2_msgs::msg::FollowTargetInfo::RUNNING)
+    // {
+    //     geometry_msgs::msg::PoseStamped pose_msg;
+    //     pose_msg.header = _msg->header;
+    //     pose_msg.pose = _msg->pose;
+    //     *target_pose_.get() = pose_msg;
+    //     manage_flags_.ref_received = true;
+    // }
+    geometry_msgs::msg::PoseStamped pose_msg;
+    pose_msg.header = _msg->header;
+    pose_msg.pose = _msg->pose;
+    *target_pose_.get() = pose_msg;
+    manage_flags_.ref_received = true;
     return;
 };
 
